@@ -1,0 +1,49 @@
+# HexMusic + Lavalink en un solo comando:  docker compose up -d
+name: hexmusic
+
+services:
+  lavalink:
+    image: ghcr.io/lavalink-devs/lavalink:4.2.2-alpine
+    container_name: hexmusic-lavalink
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx${LAVALINK_MEMORY:-1G}"
+    volumes:
+      - ./lavalink/application.yml:/opt/Lavalink/application.yml:ro
+      # En Linux ejecuta una vez: sudo chown -R 322:322 lavalink/plugins
+      - ./lavalink/plugins:/opt/Lavalink/plugins
+    networks:
+      - hexmusic
+    expose:
+      - "2333"
+    # Descomenta para acceder a Lavalink desde fuera de Docker (solo localhost):
+    # ports:
+    #   - "127.0.0.1:2333:2333"
+
+  bot:
+    build: .
+    image: hexmusic:latest
+    container_name: hexmusic-bot
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      LAVALINK_URI: "http://lavalink:2333"
+    depends_on:
+      - lavalink
+    ports:
+      # Panel web (solo responde si WEB_ENABLED=true). Detrás de un proxy HTTPS
+      # puedes limitarlo a "127.0.0.1:8080:8080".
+      - "${WEB_PORT:-8080}:${WEB_PORT:-8080}"
+    volumes:
+      - ./config.yml:/app/config.yml:ro
+      - ./locales:/app/locales:ro
+      - hexmusic-data:/app/data
+    networks:
+      - hexmusic
+
+networks:
+  hexmusic:
+
+volumes:
+  hexmusic-data:

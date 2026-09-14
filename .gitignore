@@ -1,0 +1,23 @@
+# Secretos
+.env
+
+# Datos y logs
+data/
+logs/
+lavalink/plugins/*
+!lavalink/plugins/.gitkeep
+lavalink/logs/
+lavalink/*.jar
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Editores / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,158 @@
+# ╔══════════════════════════════════════════════════════════════╗
+# ║  Lavalink para HexMusic — perfil de MÁXIMA calidad de audio  ║
+# ║  Los valores ${VAR:defecto} se leen del archivo .env         ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+server:
+  port: 2333
+  address: 0.0.0.0
+  http2:
+    enabled: false
+
+lavalink:
+  plugins:
+    # Fuente oficial de YouTube / YouTube Music
+    - dependency: "dev.lavalink.youtube:youtube-plugin:1.18.2"
+      snapshot: false
+    # Spotify, Apple Music, Deezer, Tidal, Qobuz...
+    - dependency: "com.github.topi314.lavasrc:lavasrc-plugin:4.8.3"
+      snapshot: false
+
+  server:
+    password: "${LAVALINK_PASSWORD:youshallnotpass}"
+    sources:
+      youtube: false # obsoleto: lo sustituye el plugin youtube-source
+      bandcamp: true
+      soundcloud: true
+      twitch: true
+      vimeo: true
+      nico: false
+      http: true # permite radios y enlaces directos a archivos de audio
+      local: false
+    filters:
+      volume: true
+      equalizer: true
+      karaoke: true
+      timescale: true
+      tremolo: true
+      vibrato: true
+      distortion: true
+      rotation: true
+      channelMix: true
+      lowPass: true
+
+    # ── Calidad de audio ──────────────────────────────────────────
+    opusEncodingQuality: 10 # 0-10. 10 = mejor calidad del codificador Opus
+    resamplingQuality: HIGH # LOW | MEDIUM | HIGH. HIGH = remuestreo sin artefactos
+    # ── Estabilidad (evita cortes) ────────────────────────────────
+    nonAllocatingFrameBuffer: false
+    bufferDurationMs: 400 # búfer JDA-NAS; más alto = más resistente a pausas del GC
+    frameBufferDurationMs: 5000 # 5 s de audio pre-codificado
+    trackStuckThresholdMs: 10000
+    useSeekGhosting: true
+    playerUpdateInterval: 5
+    youtubePlaylistLoadLimit: 6
+    youtubeSearchEnabled: true
+    soundcloudSearchEnabled: true
+    soundcloudFilterOutPreviewTracks: true
+    gc-warnings: true
+    timeouts:
+      connectTimeoutMs: 3000
+      connectionRequestTimeoutMs: 3000
+      socketTimeoutMs: 3000
+
+plugins:
+  youtube:
+    enabled: true
+    allowSearch: true
+    allowDirectVideoIds: true
+    allowDirectPlaylistIds: true
+    # Se prueban en orden. MUSIC permite buscar con "ytmsearch:" (YouTube Music).
+    clients:
+      - MUSIC
+      - ANDROID_VR
+      - WEB
+      - WEBEMBEDDED
+      - TVHTML5_SIMPLY
+    oauth:
+      # Actívalo solo si YouTube bloquea tu servidor. La primera vez Lavalink
+      # mostrará en su log un código para vincular una cuenta de Google SECUNDARIA.
+      enabled: ${YOUTUBE_OAUTH_ENABLED:false}
+      # Tras vincularla, pega aquí el refresh token que aparece en el log:
+      # refreshToken: "pega_aqui_tu_refresh_token"
+    # Si aun así hay bloqueos, puedes usar poToken o un servidor de cifrado remoto:
+    # pot:
+    #   token: "tu_po_token"
+    #   visitorData: "tu_visitor_data"
+    # remoteCipher:
+    #   url: "http://localhost:8001"
+    #   password: "tu_clave"
+    #   userAgent: "hexmusic"
+
+  lavasrc:
+    # Cómo se convierten las canciones "espejo" (Spotify, Apple Music, Tidal) en audio real.
+    # Primero se busca por ISRC (coincidencia exacta de grabación) y luego por texto.
+    providers:
+      # - "dzisrc:%ISRC%" # descomenta si configuras Deezer: audio FLAC/320 kbps
+      # - "qbisrc:%ISRC%" # descomenta si configuras Qobuz: audio en alta fidelidad
+      - "ytsearch:\"%ISRC%\""
+      - "ytsearch:%QUERY%"
+    sources:
+      spotify: ${SPOTIFY_ENABLED:false}
+      applemusic: ${APPLEMUSIC_ENABLED:false}
+      deezer: ${DEEZER_ENABLED:false}
+      tidal: ${TIDAL_ENABLED:false}
+      qobuz: ${QOBUZ_ENABLED:false}
+      yandexmusic: false
+      flowerytts: false
+      youtube: false
+      vkmusic: false
+      ytdlp: false
+      jiosaavn: false
+    spotify:
+      clientId: "${SPOTIFY_CLIENT_ID:}"
+      clientSecret: "${SPOTIFY_CLIENT_SECRET:}"
+      countryCode: "${MUSIC_COUNTRY_CODE:US}"
+      playlistLoadLimit: 6 # páginas de 100 canciones
+      albumLoadLimit: 6 # páginas de 50 canciones
+      resolveArtistsInSearch: true
+      localFiles: false
+    applemusic:
+      countryCode: "${MUSIC_COUNTRY_CODE:US}"
+      mediaAPIToken: "${APPLEMUSIC_MEDIA_API_TOKEN:}"
+      playlistLoadLimit: 6
+      albumLoadLimit: 6
+    deezer:
+      arl: "${DEEZER_ARL:}"
+      masterDecryptionKey: "${DEEZER_MASTER_KEY:}"
+      # Orden de preferencia: FLAC primero para máxima calidad
+      formats: ["FLAC", "MP3_320", "MP3_256", "MP3_128", "MP3_64", "AAC_64"]
+    tidal:
+      countryCode: "${MUSIC_COUNTRY_CODE:US}"
+      searchLimit: 6
+      token: "${TIDAL_TOKEN:}"
+    qobuz:
+      userOauthToken: "${QOBUZ_USER_OAUTH_TOKEN:}"
+
+metrics:
+  prometheus:
+    enabled: false
+    endpoint: /metrics
+
+logging:
+  file:
+    path: ./logs/
+  level:
+    root: INFO
+    lavalink: INFO
+  request:
+    enabled: true
+    includeClientInfo: true
+    includeHeaders: false
+    includeQueryString: true
+    includePayload: true
+    maxPayloadLength: 10000
+  logback:
+    rollingpolicy:
+      max-file-size: 1GB
+      max-history: 30

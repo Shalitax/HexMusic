@@ -1,0 +1,11 @@
+.env
+.git
+data/
+logs/
+lavalink/
+docs/
+tests/
+__pycache__/
+*.py[cod]
+.venv/
+venv/

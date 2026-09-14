@@ -1,0 +1,167 @@
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 HexMusic — configuración                     ║
+# ╚══════════════════════════════════════════════════════════════╝
+# • Todo lo que no definas aquí usa su valor por defecto.
+# • Puedes leer variables de entorno con "${VARIABLE}" o "${VARIABLE:-por_defecto}".
+# • Los secretos (token, contraseñas) van en .env, nunca en este archivo.
+# • Guía completa: docs/CONFIGURACION.md
+
+bot:
+  name: "HexMusic"
+  prefix: "hm!" # prefijo para comandos de texto (también funcionan los /slash)
+  # Necesario para el prefijo y para el canal de peticiones. Actívalo también en
+  # el portal de desarrolladores (Bot → Privileged Gateway Intents → Message Content).
+  message_content_intent: true
+  owner_ids: [] # IDs de los dueños del bot. Vacío = dueño de la aplicación
+  default_language: "es" # idioma por defecto de los servidores (es | en | ...)
+  sync_commands: true # registrar los comandos slash al arrancar
+  dev_guild_id: "${DEV_GUILD_ID:-}"
+  database: "${DATABASE_PATH:-data/hexmusic.db}"
+  status:
+    type: "listening" # playing | listening | watching | competing
+    text: "/play • HexMusic"
+  # Módulos que se cargan. Quita una línea para desactivar ese módulo entero.
+  extensions:
+    - hexmusic.cogs.general
+    - hexmusic.cogs.events
+    - hexmusic.cogs.music
+    - hexmusic.cogs.filters
+    - hexmusic.cogs.playlists
+    - hexmusic.cogs.settings
+
+logging:
+  level: "INFO" # DEBUG | INFO | WARNING | ERROR
+
+lavalink:
+  # Puedes añadir varios nodos: los reproductores se reparten entre ellos.
+  nodes:
+    - identifier: "main"
+      uri: "${LAVALINK_URI:-http://localhost:2333}"
+      password: "${LAVALINK_PASSWORD:-youshallnotpass}"
+  # Dónde buscar cuando el usuario escribe un nombre en vez de un enlace:
+  # ytmsearch (YouTube Music) | ytsearch | scsearch | spsearch | dzsearch | tdsearch | amsearch | qbsearch
+  default_search: "ytmsearch"
+  search_cache: 128 # nº de búsquedas en caché (0 = desactivado)
+
+branding:
+  color: "#8B5CF6"
+  success_color: "#22C55E"
+  error_color: "#EF4444"
+  warning_color: "#F59E0B"
+  footer: "HexMusic • Hexservers"
+  footer_icon: "" # URL de un icono. Vacío = avatar del bot
+  banner_url: "" # imagen del panel del canal de peticiones cuando no suena nada
+  large_artwork: false # true = carátula grande, false = miniatura
+  progress_bar:
+    length: 16
+    filled: "━"
+    head: "●"
+    empty: "─"
+
+# Admite emojis personalizados con el formato <:nombre:id> o <a:nombre:id>
+emojis:
+  success: "✅"
+  error: "❌"
+  warning: "⚠️"
+  info: "ℹ️"
+  music: "🎶"
+  live: "🔴"
+  previous: "⏮️"
+  pause: "⏯️"
+  skip: "⏭️"
+  stop: "⏹️"
+  queue: "📜"
+  loop: "🔁"
+  shuffle: "🔀"
+  volume_down: "🔉"
+  volume_up: "🔊"
+  autoplay: "♾️"
+  sources:
+    youtube: "📺"
+    spotify: "🟢"
+    applemusic: "🍎"
+    deezer: "🟣"
+    tidal: "🌊"
+    qobuz: "🔷"
+    soundcloud: "🟠"
+    bandcamp: "💿"
+    twitch: "🟪"
+    http: "🌐"
+    default: "🎵"
+
+player:
+  default_volume: 100 # 100 = sin procesamiento extra (máxima fidelidad)
+  max_volume: 150
+  volume_step: 10 # cuánto suben/bajan los botones de volumen
+  max_queue_size: 1000 # 0 = sin límite
+  max_track_duration: 0 # en segundos, 0 = sin límite
+  idle_timeout: 300 # segundos sin reproducir antes de salir (0 = nunca)
+  empty_channel_timeout: 120 # segundos con el canal vacío antes de salir (0 = nunca)
+  pause_when_empty: true # pausar si todos salen del canal y reanudar al volver
+  self_deaf: true
+  announce_tracks: true # enviar el panel "reproduciendo ahora" en cada canción
+  delete_old_now_playing: true
+  search_autocomplete: true # sugerencias al escribir en /play
+  search_results: 10 # resultados de /search (máx. 25)
+
+# Interruptores de funciones
+features:
+  autoplay: true # canciones relacionadas cuando se acaba la cola
+  stay_247: true # modo 24/7
+  lyrics: true # /lyrics (usa lrclib.net, gratis y sin clave)
+  request_channel: true # canal de peticiones con panel fijo (/setup)
+  vote_skip: true # votación para saltar
+
+vote_skip:
+  default_enabled: false # valor inicial por servidor (cambiable con /settings voteskip)
+  ratio: 0.5 # proporción de oyentes necesaria (0.5 = 50 %)
+
+dj:
+  # Comandos que solo pueden usar el rol DJ, admins o quien esté solo con el bot.
+  # Si un servidor no configura rol DJ, todos pueden usarlos.
+  commands:
+    - stop
+    - leave
+    - forceskip
+    - volume
+    - clear
+    - shuffle
+    - loop
+    - seek
+    - move
+    - remove
+    - skipto
+    - filter
+    - autoplay
+    - "247"
+
+playlists:
+  max_per_user: 25
+  max_tracks: 500
+
+request_channel:
+  channel_name: "hexmusic"
+  delete_after: 8 # segundos hasta borrar las respuestas en el canal
+
+filters:
+  # Añade tus propios presets (formato de filtros de Lavalink) o sobrescribe los incluidos.
+  # Bandas del ecualizador: 0 (graves, 25 Hz) … 14 (agudos, 16 kHz). Ganancia: -0.25 a 1.0
+  presets: {}
+  # Ejemplo:
+  # presets:
+  #   hexboost:
+  #     equalizer:
+  #       - { band: 0, gain: 0.2 }
+  #       - { band: 1, gain: 0.15 }
+  #     timescale: { speed: 1.0, pitch: 1.05, rate: 1.0 }
+
+# Panel web con inicio de sesión de Discord. Guía: docs/PANEL_WEB.md
+web:
+  enabled: "${WEB_ENABLED:-false}"
+  host: "${WEB_HOST:-0.0.0.0}"
+  port: "${WEB_PORT:-8080}"
+  # Dirección con la que se abre el panel en el navegador. En el portal de
+  # desarrolladores de Discord (OAuth2 → Redirects) añade: <public_url>/auth/callback
+  public_url: "${WEB_PUBLIC_URL:-http://localhost:8080}"
+  client_secret: "${WEB_CLIENT_SECRET:-}"
+  session_days: 7 # días que dura la sesión antes de volver a iniciar sesión
