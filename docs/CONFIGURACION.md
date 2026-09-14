@@ -26,6 +26,7 @@ HexMusic se configura en **tres niveles**:
 | `MUSIC_COUNTRY_CODE` | — | País para catálogos regionales (`ES`, `MX`, `US`…) |
 | `SPOTIFY_*`, `APPLEMUSIC_*`, `DEEZER_*`, `TIDAL_*`, `QOBUZ_*` | — | Ver [Fuentes de música](FUENTES.md) |
 | `YOUTUBE_OAUTH_ENABLED` | — | Ver [Fuentes → YouTube](FUENTES.md#youtube) |
+| `YOUTUBE_OAUTH_REFRESH_TOKEN` | — | Refresh token de la cuenta vinculada; evita pedir el código en cada reinicio (ver [Fuentes → YouTube](FUENTES.md#youtube)) |
 | `HEXMUSIC_CONFIG` | — | Ruta alternativa a `config.yml` |
 | `WEB_ENABLED`, `WEB_PORT`, `WEB_PUBLIC_URL`, `WEB_CLIENT_SECRET` | — | Panel web, ver [Panel web](PANEL_WEB.md) |
 | `HEXMUSIC__SECCION__CLAVE` | — | Sobrescribe cualquier ajuste de `config.yml` ([ver abajo](#sobrescribir-ajustes-con-variables-de-entorno)) |

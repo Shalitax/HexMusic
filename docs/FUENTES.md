@@ -42,19 +42,23 @@ Funciona sin configuración. Los clientes definidos en `plugins.youtube.clients`
 
 ### Si YouTube bloquea tu servidor
 
-Los centros de datos a veces reciben errores como *"Sign in to confirm you're not a bot"* o *"This video is unavailable"*. Soluciones, de la más sencilla a la más avanzada:
+Los centros de datos a veces reciben errores como *"Sign in to confirm you're not a bot"*, *"This video requires login"* o *"This video is unavailable"*. Soluciones, de la más sencilla a la más avanzada:
 
 1. **Actualiza el plugin.** Pon la [última versión de youtube-source](https://github.com/lavalink-devs/youtube-source/releases) en `application.yml`. Muchas veces basta con esto.
-2. **OAuth con una cuenta secundaria:**
+2. **OAuth con una cuenta secundaria** (la solución más eficaz):
    1. Pon `YOUTUBE_OAUTH_ENABLED=true` en `.env` y reinicia Lavalink.
-   2. En el log de Lavalink aparecerá un enlace de Google y un código. Ábrelo e inicia sesión con una **cuenta de Google secundaria**, nunca la personal: existe riesgo de que la bloqueen.
-   3. Cuando se complete, el log mostrará un **refresh token**. Pégalo en `application.yml`:
+   2. En el log de Lavalink aparecerá un enlace de Google y un código. Ábrelo e inicia sesión con una **cuenta de Google secundaria**, nunca la personal: existe riesgo de que la bloqueen. El código pertenece al Lavalink que está en marcha: si lo reinicias antes de validarlo, genera uno nuevo y el anterior deja de servir (el log acumula códigos de varios arranques).
+   3. Cuando se complete, el log mostrará un **refresh token**. Guárdalo en `YOUTUBE_OAUTH_REFRESH_TOKEN` (`.env`) o directamente en `refreshToken` de `application.yml`:
       ```yaml
       oauth:
         enabled: ${YOUTUBE_OAUTH_ENABLED:false}
-        refreshToken: "tu_refresh_token"
+        refreshToken: "${YOUTUBE_OAUTH_REFRESH_TOKEN:}"
       ```
    4. Reinicia Lavalink. A partir de ahí no vuelve a pedir el código.
+
+   > La cuenta **solo la utiliza el cliente `TV`**, el único que admite OAuth en youtube-source. Ya viene incluido al final de `plugins.youtube.clients`; si lo quitas, la vinculación deja de tener efecto y Lavalink lo avisa con *"OAuth has been enabled without registering any OAuth-compatible clients"*. Si YouTube bloquea casi todo, puedes subir `TV` justo debajo de `MUSIC` para ahorrar los intentos fallidos de los demás clientes.
+
+   > **Con el egg de Pterodactyl no hay que copiar nada:** al activar *YouTube con cuenta*, el código aparece en la consola y el token se guarda solo en `.hex/youtube-refresh-token.txt`. Rellena *YouTube: refresh token* en Startup solo si quieres fijarlo tú.
 3. **poToken o servidor de cifrado remoto.** Hay bloques comentados `pot` y `remoteCipher` en `application.yml`. Consulta la [documentación de youtube-source](https://github.com/lavalink-devs/youtube-source#readme).
 
 ---

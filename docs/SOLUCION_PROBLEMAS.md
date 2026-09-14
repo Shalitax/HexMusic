@@ -57,9 +57,15 @@ docker compose up -d --force-recreate lavalink
 3. El bot necesita los permisos **Conectar** y **Hablar** en ese canal.
 4. En un **canal de escenario** (Stage), el bot tiene que ser orador.
 
-### YouTube: *"Sign in to confirm you're not a bot"*, *"This video is unavailable"*, *"Please sign in"*
+### YouTube: *"Sign in to confirm you're not a bot"*, *"This video requires login"*, *"This video is unavailable"*
 
-YouTube está bloqueando la IP del servidor. Sigue [Fuentes → Si YouTube bloquea tu servidor](FUENTES.md#si-youtube-bloquea-tu-servidor): primero actualiza `youtube-source`, después prueba OAuth.
+YouTube está bloqueando la IP del servidor. Sigue [Fuentes → Si YouTube bloquea tu servidor](FUENTES.md#si-youtube-bloquea-tu-servidor): primero actualiza `youtube-source`, después vincula una cuenta con OAuth.
+
+Al vincular, ten en cuenta:
+
+- El **refresh token** debe quedar guardado (en `.env`, en `application.yml` o, con el egg, en `.hex/`): si no, cada reinicio vuelve a pedir el código.
+- El código **caduca y solo sirve para el Lavalink en curso**; si validas uno de un arranque anterior, no hace nada.
+- La vinculación **solo la usa el cliente `TV`**: si tu lista de clientes no lo incluye, vincular la cuenta no cambia la reproducción.
 
 ### Los enlaces de Spotify, Apple Music, Deezer o Tidal no funcionan
 

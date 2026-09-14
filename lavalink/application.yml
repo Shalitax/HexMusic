@@ -68,18 +68,24 @@ plugins:
     allowDirectVideoIds: true
     allowDirectPlaylistIds: true
     # Se prueban en orden. MUSIC permite buscar con "ytmsearch:" (YouTube Music).
+    # TV es el único cliente que aprovecha la cuenta vinculada (OAuth); va al
+    # final para no alterar nada mientras el resto funciona sin cuenta.
     clients:
       - MUSIC
       - ANDROID_VR
       - WEB
       - WEBEMBEDDED
       - TVHTML5_SIMPLY
+      - TV
     oauth:
       # Actívalo solo si YouTube bloquea tu servidor. La primera vez Lavalink
-      # mostrará en su log un código para vincular una cuenta de Google SECUNDARIA.
+      # muestra un código para vincular una cuenta de Google SECUNDARIA: con el
+      # egg, el código sale en la consola y el token se guarda solo.
       enabled: ${YOUTUBE_OAUTH_ENABLED:false}
-      # Tras vincularla, pega aquí el refresh token que aparece en el log:
-      # refreshToken: "pega_aqui_tu_refresh_token"
+      # Refresh token de esa cuenta; evita repetir la vinculación en cada
+      # reinicio. Solo hay que rellenarlo si lo gestionas tú: en el egg se lee
+      # de .hex/youtube-refresh-token.txt (o de la variable del panel).
+      refreshToken: "${YOUTUBE_OAUTH_REFRESH_TOKEN:}"
     # Si aun así hay bloqueos, puedes usar poToken o un servidor de cifrado remoto:
     # pot:
     #   token: "tu_po_token"
