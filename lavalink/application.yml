@@ -91,14 +91,18 @@ plugins:
       # reinicio. Solo hay que rellenarlo si lo gestionas tú: en el egg se lee
       # de .hex/youtube-refresh-token.txt (o de la variable del panel).
       refreshToken: "${YOUTUBE_OAUTH_REFRESH_TOKEN:}"
-    # Si aun así hay bloqueos, puedes usar poToken o un servidor de cifrado remoto:
+    # Servidor de cifrado remoto (yt-cipher): resuelve las firmas que el cliente
+    # TV necesita para reproducir con la cuenta vinculada. El egg de Pterodactyl
+    # instala y conecta uno interno automáticamente (no hay que tocar nada aquí);
+    # con Docker, levanta un yt-cipher propio y descomenta:
+    # remoteCipher:
+    #   url: "http://localhost:8001"
+    #   password: ""
+    #   userAgent: "hexmusic"
+    # Alternativa a OAuth (solo para WEB/WEBEMBEDDED): poToken.
     # pot:
     #   token: "tu_po_token"
     #   visitorData: "tu_visitor_data"
-    # remoteCipher:
-    #   url: "http://localhost:8001"
-    #   password: "tu_clave"
-    #   userAgent: "hexmusic"
 
   lavasrc:
     # Cómo se convierten las canciones "espejo" (Spotify, Apple Music, Tidal) en audio real.

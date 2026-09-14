@@ -67,7 +67,7 @@ Al vincular, ten en cuenta:
 - El código **caduca y solo sirve para el Lavalink en curso**; si validas uno de un arranque anterior, no hace nada.
 - La vinculación **solo la usa el cliente `TV`**: si tu lista de clientes no lo incluye, vincular la cuenta no cambia la reproducción.
 
-Si el error es *`Client [TVHTML5] failed: The page needs to be reloaded.`*, no es culpa del token: es un fallo de youtube-source 1.18.2 (YouTube cambió su política de User-Agent el 18/08/2026). Actualiza el bot: HexMusic ya fija la compilación corregida del plugin. Si tras actualizar aparece *`Must find sig function from script`*, YouTube ha cambiado además el sistema de firmas: valora un servidor de cifrado remoto (`remoteCipher`, comentado en `application.yml`) o espera una nueva versión del plugin.
+Si el error es *`Client [TVHTML5] failed: The page needs to be reloaded.`*, no es culpa del token: es un fallo de youtube-source 1.18.2 (YouTube cambió su política de User-Agent el 18/08/2026). Actualiza el bot: HexMusic ya fija la compilación corregida del plugin. Si después aparece *`Must find sig function from script`*, YouTube ha vuelto a cambiar el script del reproductor: hace falta un servidor de cifrado remoto. La compilación de HexMusic para Pterodactyl ya lo instala y conecta solo (yt-cipher); con Docker, levanta un [yt-cipher](https://github.com/kikkia/yt-cipher) y descomenta el bloque `remoteCipher` de `application.yml`.
 
 ### Los enlaces de Spotify, Apple Music, Deezer o Tidal no funcionan
 

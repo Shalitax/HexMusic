@@ -61,7 +61,7 @@ Los centros de datos a veces reciben errores como *"Sign in to confirm you're no
    > La cuenta **solo la utiliza el cliente `TV`**, el único que admite OAuth en youtube-source. Ya viene incluido al final de `plugins.youtube.clients`; si lo quitas, la vinculación deja de tener efecto y Lavalink lo avisa con *"OAuth has been enabled without registering any OAuth-compatible clients"*. Si YouTube bloquea casi todo, puedes subir `TV` justo debajo de `MUSIC` para ahorrar los intentos fallidos de los demás clientes.
 
    > **Con el egg de Pterodactyl no hay que copiar nada:** al activar *YouTube con cuenta*, el código aparece en la consola y el token se guarda solo en `.hex/youtube-refresh-token.txt`. Rellena *YouTube: refresh token* en Startup solo si quieres fijarlo tú.
-3. **poToken o servidor de cifrado remoto.** Hay bloques comentados `pot` y `remoteCipher` en `application.yml`. Consulta la [documentación de youtube-source](https://github.com/lavalink-devs/youtube-source#readme).
+3. **Servidor de cifrado remoto (yt-cipher).** Es lo que resuelve las firmas que usa el cliente `TV` cuando aparece *`Must find sig function from script`*. La compilación para Pterodactyl lo instala y conecta solo; con Docker, levanta un [yt-cipher](https://github.com/kikkia/yt-cipher) y descomenta el bloque `remoteCipher` de `application.yml`. Como alternativa más sencilla (solo WEB/WEBEMBEDDED) existe el `poToken`. Consulta la [documentación de youtube-source](https://github.com/lavalink-devs/youtube-source#readme).
 
 ---
 
