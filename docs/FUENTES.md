@@ -45,6 +45,8 @@ Funciona sin configuración. Los clientes definidos en `plugins.youtube.clients`
 Los centros de datos a veces reciben errores como *"Sign in to confirm you're not a bot"*, *"This video requires login"* o *"This video is unavailable"*. Soluciones, de la más sencilla a la más avanzada:
 
 1. **Actualiza el plugin.** Pon la [última versión de youtube-source](https://github.com/lavalink-devs/youtube-source/releases) en `application.yml`. Muchas veces basta con esto.
+
+   > **Caso conocido: `TVHTML5 failed: The page needs to be reloaded.`** Desde el 18/08/2026 YouTube rechaza el User-Agent que usa el cliente `TV` en youtube-source 1.18.2 (justo el único que aprovecha la cuenta; PR [#233](https://github.com/lavalink-devs/youtube-source/pull/233)). HexMusic ya trae fijada la compilación corregida (`f45bbb7…` del repositorio de *snapshots*); cuando salga una versión estable con la corrección, se puede volver a `youtube-plugin:1.18.x` con `snapshot: false`.
 2. **OAuth con una cuenta secundaria** (la solución más eficaz):
    1. Pon `YOUTUBE_OAUTH_ENABLED=true` en `.env` y reinicia Lavalink.
    2. En el log de Lavalink aparecerá un enlace de Google y un código. Ábrelo e inicia sesión con una **cuenta de Google secundaria**, nunca la personal: existe riesgo de que la bloqueen. El código pertenece al Lavalink que está en marcha: si lo reinicias antes de validarlo, genera uno nuevo y el anterior deja de servir (el log acumula códigos de varios arranques).
