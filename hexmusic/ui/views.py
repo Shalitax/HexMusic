@@ -11,7 +11,7 @@ import discord
 import wavelink
 from discord.ext import commands
 
-from ..core.panel import build_panel_embed
+from ..core.panel import build_panel_embed, refresh_panel
 from ..core.playback import add_tracks, ensure_player, skip_or_vote
 from ..errors import HexError
 from ..player import HexPlayer
@@ -100,6 +100,7 @@ class ControlsView(discord.ui.View):
             elif action == "pause":
                 if player.current is None:
                     return await self._deny(interaction, t("errors.nothing_playing"))
+                player.paused_by_empty = False
                 await player.pause(not player.paused)
             elif action == "skip":
                 if player.current is None:
@@ -110,6 +111,8 @@ class ControlsView(discord.ui.View):
             elif action == "stop":
                 await player.stop_and_clear()
                 idle = True
+                # El panel fijo del canal de peticiones también vuelve a reposo
+                await refresh_panel(bot, guild, player, idle=True)
             elif action == "loop":
                 player.cycle_loop()
             elif action == "shuffle":

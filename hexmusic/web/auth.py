@@ -168,7 +168,14 @@ class Auth:
         cached = self._guilds.get(session.token_hash)
         if cached and time.monotonic() - cached[0] < GUILDS_CACHE_SECONDS:
             return cached[1]
-        guilds = await self._request("GET", "/users/@me/guilds", headers={"Authorization": f"Bearer {session.access_token}"})
+        try:
+            guilds = await self._request("GET", "/users/@me/guilds",
+                                         headers={"Authorization": f"Bearer {session.access_token}"})
+        except DiscordAPIError:
+            # Límite de peticiones o caída de Discord: mejor la lista anterior que echar al usuario del panel
+            if cached:
+                return cached[1]
+            raise
         self._guilds[session.token_hash] = (time.monotonic(), guilds)
         return guilds
 

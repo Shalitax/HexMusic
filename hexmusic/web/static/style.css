@@ -49,6 +49,11 @@ h2 { font-size: 15px; font-weight: 600; }
   border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
   color: #fecaca; padding: 10px 14px; border-radius: 10px;
 }
+.notice {
+  background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  padding: 12px 14px; border-radius: 10px; display: grid; gap: 6px;
+}
+.code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 18px; letter-spacing: 2px; }
 
 #toasts { position: fixed; right: 18px; bottom: 18px; display: grid; gap: 8px; z-index: 50; }
 .toast {

@@ -58,7 +58,9 @@
     "invalid_language": "Language not available. Options: {languages}.",
     "preset_not_found": "The preset **{name}** doesn't exist. Use `/filter list` to see the available ones.",
     "request_channel_create_failed": "I couldn't create the channel. I need the **Manage Channels** permission.",
-    "not_your_menu": "This menu isn't yours. Run the command yourself."
+    "not_your_menu": "This menu isn't yours. Run the command yourself.",
+    "public_playlist_not_found": "**{user}** has no public playlist called **{name}**.",
+    "import_not_playlist": "That link isn't a playlist or an album. To add a single song use `/playlist add`."
   },
   "nowplaying": {
     "title": "Now playing",
@@ -120,7 +122,8 @@
     "grabbed": "I sent you the song in a direct message.",
     "grab_description": "by **{author}** • `{duration}`\nSaved from **{guild}**",
     "left_inactive": "I left due to inactivity. Use `/play` to call me back.",
-    "left_empty": "I left because the voice channel was empty."
+    "left_empty": "I left because the voice channel was empty.",
+    "session_restored": "🔄 I'm back after a restart: the music continues where it left off."
   },
   "lyrics": {
     "title": "📝 {title} — {artist}",
@@ -150,7 +153,14 @@
     "added": "Added {count} songs to **{name}**.",
     "removed": "Removed **{track}** from **{name}**.",
     "loaded": "Loading the playlist **{name}** ({count} songs).",
-    "saved_queue": "Saved {count} songs from the queue into **{name}**."
+    "saved_queue": "Saved {count} songs from the queue into **{name}**.",
+    "list_empty_public": "**{user}** has no public playlists.",
+    "public_legend": "{mark} = public (anyone can view, play and copy it)",
+    "imported_new": "Playlist **{name}** created with {count} songs.",
+    "imported_existing": "Added {count} songs to your playlist **{name}**.",
+    "shared": "🌐 **{name}** is now public. Others can play it with `/playlist play name:{name} user:` and your user, or copy it with `/playlist copy`.",
+    "unshared": "🔒 **{name}** is private again.",
+    "copied": "Copied {count} songs into your new playlist **{name}**."
   },
   "settings": {
     "title": "⚙️ {guild} settings",
@@ -204,7 +214,7 @@
   },
   "console": {
     "ready": "Console enabled: type 'help' to see the commands.",
-    "help": "Console commands:\n  help     Show this help\n  status   Servers, players, Lavalink nodes and web panel\n  servers  List the servers the bot is in\n  sync     Register the slash commands on Discord\n  reload   Reload the language files\n  stop     Shut the bot down gracefully",
+    "help": "Console commands:\n  help      Show this help\n  status    Servers, players, Lavalink nodes and web panel\n  servers   List the servers the bot is in\n  sync      Register the slash commands on Discord\n  reload    Reload the language files\n  youtube   YouTube account: youtube [status | link | unlink | cancel | token <refresh token>]\n  save      Save what is playing now (it comes back after a restart)\n  stop      Shut the bot down gracefully",
     "status": "Bot: {user} | Servers: {servers} | Players: {players} | Lavalink: {online}/{total} nodes | Uptime: {uptime} | Web panel: {web}",
     "web_off": "disabled",
     "servers": "The bot is in {count} servers:",
@@ -212,14 +222,51 @@
     "reloaded": "Languages reloaded: {languages}.",
     "stopping": "Shutting the bot down...",
     "unknown": "Unknown command: {command}. Type 'help' to see the list.",
-    "error": "Error while running the console command"
+    "error": "Error while running the console command",
+    "saved": "Saved the state of {count} player(s)."
+  },
+  "youtube": {
+    "link_title": "YOUTUBE: LINK A GOOGLE ACCOUNT",
+    "link_step_open": "1) Open: {url}",
+    "link_step_code": "2) Enter the code: {code}",
+    "link_step_account": "3) Sign in with a SECONDARY account (not your personal one: YouTube may block it).",
+    "link_footer": "The code is valid for {minutes} minutes. Once done, the token is saved and won't be asked for again.",
+    "link_done": "YOUTUBE: ACCOUNT LINKED. Token saved and handed to {nodes} Lavalink node(s); no restart needed.",
+    "link_denied": "YouTube: linking was denied. Type 'youtube link' to try again with the secondary account.",
+    "link_expired": "YouTube: the code expired before it was entered. Type 'youtube link' for a new one (no restart needed).",
+    "code_failed": "YouTube: couldn't get a linking code from Google ({error}). Try 'youtube link' in a few minutes.",
+    "stored_token_rejected": "YouTube: Google rejected the saved token (account blocked, password changed or access revoked).\nIt was removed and a new code will be requested.",
+    "panel_token_rejected": "YouTube: Google rejected the token in the 'YouTube: refresh token' variable.\nClear that variable so it isn't tried again on every start.",
+    "status_off": "YouTube account: disabled.",
+    "status_pending": "YouTube account: not linked. Type 'youtube link' to get a code.",
+    "status_linking": "YouTube account: waiting for the code to be entered.",
+    "status_linked": "YouTube account: linked.",
+    "status_unverified": "YouTube account: token in use, but Google didn't answer when checking it (will retry).",
+    "status_code": "Pending code: open {url} and enter {code}",
+    "status_panel_token": "Note: the panel variable 'YouTube: refresh token' is set and takes priority on start.",
+    "disabled": "YouTube account is disabled. Enable it in Startup ('YouTube con cuenta' = 1) or with YOUTUBE_OAUTH_ENABLED=true and restart.",
+    "already_linking": "A linking code is already in progress. Type 'youtube status' to see it or 'youtube cancel'.",
+    "link_requested": "Requesting a linking code from Google...",
+    "link_cancelled": "Linking cancelled.",
+    "unlinked": "YouTube account unlinked and removed from {nodes} node(s). Type 'youtube link' to link another one.",
+    "usage": "Usage: youtube [status | link | unlink | cancel | token <refresh token>]",
+    "token_saved": "YouTube token checked, saved and in use.",
+    "token_rejected": "Google rejected that token. Make sure it's complete (it starts with 1//).",
+    "token_unchecked": "Couldn't check the token with Google right now. Try again in a few minutes."
   },
   "web": {
     "login": {
       "subtitle": "Sign in with Discord to manage the music on your servers.",
       "button": "Sign in with Discord",
       "error": "Sign-in failed. Please try again.",
-      "language": "Language"
+      "language": "Language",
+      "retry": "Retry",
+      "errors": {
+        "denied": "You cancelled the sign-in on Discord.",
+        "state": "The sign-in expired or was opened from another address. Try again from this button.",
+        "config": "Discord rejected the panel configuration (Client Secret or Redirect). Tell the bot administrator.",
+        "discord": "Discord didn't respond. Try again in a few seconds."
+      }
     },
     "nav": {
       "stats": "Statistics",
@@ -360,7 +407,33 @@
       "deleted": "Playlist deleted.",
       "remove": "Remove",
       "empty_tracks": "This playlist has no songs.",
-      "add_hint": "To add songs use /playlist add in Discord."
+      "add_hint": "You can also use /playlist add or /playlist import in Discord.",
+      "public": "Public",
+      "public_hint": "Anyone can view, play and copy it with /playlist play or /playlist copy using your user.",
+      "made_public": "The playlist is now public.",
+      "made_private": "The playlist is now private.",
+      "add_placeholder": "Name or link (one song, a playlist or an album)",
+      "add": "Add",
+      "added": "Added {count} songs."
+    },
+    "youtube": {
+      "title": "YouTube account",
+      "disabled": "Disabled. Enable 'YouTube con cuenta' on the server panel (or YOUTUBE_OAUTH_ENABLED=true) and restart.",
+      "status_off": "Disabled.",
+      "status_pending": "Not linked. Only link an account if YouTube blocks the server.",
+      "status_linking": "Waiting for the code to be entered…",
+      "status_linked": "✅ Linked: playback uses this account.",
+      "status_unverified": "⚠️ Token in use, but Google didn't answer when checking it. It will retry on its own.",
+      "step_open": "1) Open",
+      "step_code": "2) Enter the code",
+      "step_account": "Use a SECONDARY Google account, never your personal one: YouTube may block it.",
+      "link": "Link account",
+      "relink": "Link another account",
+      "cancel": "Cancel",
+      "unlink": "Unlink",
+      "confirm_unlink": "Unlink the YouTube account? The saved token will be deleted.",
+      "panel_token": "The server variable 'YouTube: refresh token' is set and takes priority on start.",
+      "linked_toast": "YouTube account linked."
     }
   },
   "_commands": {}

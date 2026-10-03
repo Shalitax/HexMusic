@@ -26,7 +26,8 @@ HexMusic se configura en **tres niveles**:
 | `MUSIC_COUNTRY_CODE` | — | País para catálogos regionales (`ES`, `MX`, `US`…) |
 | `SPOTIFY_*`, `APPLEMUSIC_*`, `DEEZER_*`, `TIDAL_*`, `QOBUZ_*` | — | Ver [Fuentes de música](FUENTES.md) |
 | `YOUTUBE_OAUTH_ENABLED` | — | Ver [Fuentes → YouTube](FUENTES.md#youtube) |
-| `YOUTUBE_OAUTH_REFRESH_TOKEN` | — | Refresh token de la cuenta vinculada; evita pedir el código en cada reinicio (ver [Fuentes → YouTube](FUENTES.md#youtube)) |
+| `YOUTUBE_OAUTH_REFRESH_TOKEN` | — | Opcional: fija el refresh token de la cuenta (tiene prioridad sobre el guardado). Ver [Fuentes → YouTube](FUENTES.md#youtube) |
+| `YOUTUBE_TOKEN_FILE` | `data/youtube-refresh-token.txt` | Dónde guarda el bot el token de YouTube al vincular |
 | `HEXMUSIC_CONFIG` | — | Ruta alternativa a `config.yml` |
 | `WEB_ENABLED`, `WEB_PORT`, `WEB_PUBLIC_URL`, `WEB_CLIENT_SECRET` | — | Panel web, ver [Panel web](PANEL_WEB.md) |
 | `HEXMUSIC__SECCION__CLAVE` | — | Sobrescribe cualquier ajuste de `config.yml` ([ver abajo](#sobrescribir-ajustes-con-variables-de-entorno)) |
@@ -105,6 +106,8 @@ Admiten emojis personalizados con el formato `<:nombre:id>` o `<a:nombre:id>` (a
 | `delete_old_now_playing` | `true` | Borrar el panel anterior al empezar otra canción |
 | `search_autocomplete` | `true` | Sugerencias mientras se escribe en `/play` |
 | `search_results` | `10` | Resultados de `/search` (máx. 25) |
+| `persist_queue` | `true` | Guarda la canción actual (con su posición), la cola, el volumen, la repetición y los filtros, y los recupera tras un reinicio. Solo vuelve a canales con gente (o con 24/7) y si el bot estuvo apagado menos de 6 horas |
+| `persist_interval` | `30` | Cada cuántos segundos se guarda ese estado (también al apagar; mínimo 10) |
 
 ### `features`
 
@@ -139,6 +142,14 @@ Tienen permisos DJ quienes cumplan **al menos una** condición: administrador o 
 |---|---|---|
 | `max_per_user` | `25` | Playlists por usuario |
 | `max_tracks` | `500` | Canciones por playlist |
+
+### `youtube`
+
+| Clave | Por defecto | Descripción |
+|---|---|---|
+| `oauth` | `${YOUTUBE_OAUTH_ENABLED}` | Vincular una cuenta de YouTube y entregársela a Lavalink |
+| `refresh_token` | `${YOUTUBE_OAUTH_REFRESH_TOKEN}` | Token fijo (opcional; si no, se usa el guardado) |
+| `token_file` | `${YOUTUBE_TOKEN_FILE:-data/youtube-refresh-token.txt}` | Archivo donde se guarda el token |
 
 ### `request_channel`
 
@@ -181,7 +192,7 @@ Cualquier clave de `config.yml` se puede sobrescribir con una variable `HEXMUSIC
 - Una variable vacía se ignora.
 - Si la clave no existe, el log avisa y se ignora.
 
-`bot.console: true` (`HEXMUSIC__BOT__CONSOLE=1`) activa los comandos escritos en la consola (`ayuda`, `estado`, `servidores`, `sync`, `idiomas`, `detener`). El egg de Pterodactyl lo activa automáticamente.
+`bot.console: true` (`HEXMUSIC__BOT__CONSOLE=1`) activa los comandos escritos en la consola (`ayuda`, `estado`, `servidores`, `sync`, `idiomas`, `youtube`, `guardar`, `detener`). El egg de Pterodactyl lo activa automáticamente.
 
 ---
 

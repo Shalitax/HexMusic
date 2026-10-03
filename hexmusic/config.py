@@ -106,6 +106,8 @@ DEFAULTS: dict[str, Any] = {
         "delete_old_now_playing": True,
         "search_autocomplete": True,
         "search_results": 10,
+        "persist_queue": True,
+        "persist_interval": 30,
     },
     "features": {
         "autoplay": True,
@@ -134,6 +136,11 @@ DEFAULTS: dict[str, Any] = {
         ]
     },
     "playlists": {"max_per_user": 25, "max_tracks": 500},
+    "youtube": {
+        "oauth": "${YOUTUBE_OAUTH_ENABLED:-false}",
+        "refresh_token": "${YOUTUBE_OAUTH_REFRESH_TOKEN:-}",
+        "token_file": "${YOUTUBE_TOKEN_FILE:-data/youtube-refresh-token.txt}",
+    },
     "request_channel": {"channel_name": "hexmusic", "delete_after": 8},
     "filters": {"presets": {}},
     "web": {
@@ -284,7 +291,7 @@ def validate(data: dict[str, Any]) -> None:
 
     player = data["player"]
     for key in ("default_volume", "max_volume", "volume_step", "max_queue_size", "max_track_duration",
-                "idle_timeout", "empty_channel_timeout", "search_results"):
+                "idle_timeout", "empty_channel_timeout", "search_results", "persist_interval"):
         if not isinstance(player.get(key), int) or player[key] < 0:
             errors.append(f"player.{key} debe ser un número entero positivo.")
     if isinstance(player.get("max_volume"), int) and not 1 <= player["max_volume"] <= 1000:

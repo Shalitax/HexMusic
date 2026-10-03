@@ -83,14 +83,14 @@ plugins:
       - TVHTML5_SIMPLY
       - TV
     oauth:
-      # Actívalo solo si YouTube bloquea tu servidor. La primera vez Lavalink
-      # muestra un código para vincular una cuenta de Google SECUNDARIA: con el
-      # egg, el código sale en la consola y el token se guarda solo.
+      # Actívalo solo si YouTube bloquea tu servidor (YOUTUBE_OAUTH_ENABLED).
       enabled: ${YOUTUBE_OAUTH_ENABLED:false}
-      # Refresh token de esa cuenta; evita repetir la vinculación en cada
-      # reinicio. Solo hay que rellenarlo si lo gestionas tú: en el egg se lee
-      # de .hex/youtube-refresh-token.txt (o de la variable del panel).
-      refreshToken: "${YOUTUBE_OAUTH_REFRESH_TOKEN:}"
+      # La cuenta la gestiona HexMusic: el bot muestra el código de vinculación
+      # en su consola, comprueba y guarda el refresh token y se lo entrega a
+      # Lavalink por la API del plugin (POST /youtube) cada vez que se conecta.
+      # Por eso aquí no se pone el token: si estuviera y Google lo rechazara,
+      # Lavalink no llegaría a arrancar. Tampoco se pide código desde Lavalink.
+      skipInitialization: true
     # Servidor de cifrado remoto (yt-cipher): resuelve las firmas que el cliente
     # TV necesita para reproducir con la cuenta vinculada. El egg de Pterodactyl
     # instala y conecta uno interno automáticamente (no hay que tocar nada aquí);

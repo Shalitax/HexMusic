@@ -17,6 +17,8 @@ from discord.ext import commands
 
 from . import __version__
 from .config import Config
+from .core.sessions import SessionStore
+from .core.youtube import YouTubeAccount
 from .database import Database
 from .errors import HexError
 from .i18n import HexTranslator, I18n
@@ -81,12 +83,15 @@ class HexMusic(commands.AutoShardedBot):
         db_path = Path(str(config.bot.database))
         self.db = Database(db_path if db_path.is_absolute() else root / db_path)
         self.colors = Colors(config.branding)
+        self.youtube = YouTubeAccount(self)
+        self.sessions = SessionStore(self)
         self.http_session: aiohttp.ClientSession | None = None
         self.controls_view: ControlsView | None = None
         self.started_at = time.time()
         self._nodes_task: asyncio.Task[None] | None = None
         self.web: Any = None  # WebPanel cuando web.enabled = true
         self.console: Any = None  # Console cuando bot.console = true
+        self._shutting_down = False
 
     # ───── Arranque ─────
 
@@ -157,6 +162,12 @@ class HexMusic(commands.AutoShardedBot):
                  self.user.id if self.user else "?", len(self.guilds))
 
     async def close(self) -> None:
+        if self._shutting_down:
+            return
+        self._shutting_down = True
+        # Antes de desconectar nada: foto de lo que suena para recuperarlo al volver
+        await self.sessions.close()
+        await self.youtube.close()
         if self._nodes_task is not None:
             self._nodes_task.cancel()
         if self.web is not None:

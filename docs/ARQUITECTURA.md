@@ -30,7 +30,7 @@ flowchart LR
 | `__main__.py` | Carga `.env` y `config.yml`, configura los logs y arranca el bot |
 | `bot.py` | Clase `HexMusic`: arranque, conexión a Lavalink, sincronización de slash, idiomas, permisos DJ y gestión de errores |
 | `config.py` | Valores por defecto, fusión con `config.yml`, expansión de `${VARIABLES}` y validación |
-| `database.py` | SQLite asíncrono: `guild_settings`, `playlists`, `playlist_tracks`, con caché de ajustes |
+| `database.py` | SQLite asíncrono: `guild_settings`, `playlists` (con `public`), `playlist_tracks`, `player_sessions` y `web_sessions`, con caché de ajustes y migraciones automáticas de columnas |
 | `i18n.py` | `I18n` (mensajes) y `HexTranslator` (descripciones de los comandos slash) |
 | `player.py` | `HexPlayer` (hereda de `wavelink.Player`): votos, 24/7, canción anterior, filtros, panel |
 | `checks.py` | `music_check()`: validaciones de voz, reproductor y DJ |
@@ -38,6 +38,8 @@ flowchart LR
 | `core/playback.py` | Búsqueda, conexión, cola, autoplay y votaciones. Lo comparten comandos, botones y canal de peticiones |
 | `core/panel.py` | Crear o actualizar el panel "reproduciendo ahora" |
 | `core/presets.py` | Presets de filtros y conversión al formato de Lavalink |
+| `core/sessions.py` | Cola persistente: foto periódica de cada reproductor y restauración al arrancar |
+| `core/youtube.py` | Cuenta de YouTube: flujo de dispositivo de Google, comprobación del token y entrega a Lavalink (`POST /youtube`) |
 | `ui/embeds.py` | Todos los embeds, con el branding de la configuración |
 | `ui/views.py` | `ControlsView` (botones persistentes), `Paginator` y `SearchView` |
 | `utils/` | Formato de tiempos y barras, búsqueda de letras |

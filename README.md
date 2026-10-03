@@ -21,8 +21,10 @@ YouTube · YouTube Music · Spotify · Apple Music · Deezer · Tidal · Qobuz �
 | 🎛️ **Panel con botones** | Anterior, pausa, saltar, parar, cola, repetir, mezclar, volumen y autoplay. Los botones siguen funcionando tras reiniciar el bot. |
 | 📨 **Canal de peticiones** | `/setup` crea un canal con panel fijo: los usuarios escriben el nombre de una canción y suena. |
 | 🎚️ **Filtros** | 17 presets (bassboost, nightcore, 8D, vaporwave, karaoke…), ecualizador de 15 bandas, velocidad y tono. Añade los tuyos en `config.yml`. |
-| 📁 **Playlists** | Cada usuario guarda sus playlists y las reproduce en cualquier servidor. |
+| 📁 **Playlists** | Cada usuario guarda sus playlists y las reproduce en cualquier servidor. Importa playlists o álbumes enteros por enlace y comparte las tuyas: los demás pueden reproducirlas o copiarlas. |
 | ♾️ **Autoplay y 24/7** | Canciones relacionadas cuando se acaba la cola. El modo 24/7 se restaura tras un reinicio. |
+| 🔄 **Cola persistente** | Tras un reinicio o una actualización, el bot vuelve al canal y sigue la canción donde estaba, con la cola, el volumen y los filtros. |
+| 🔑 **YouTube con cuenta** | El bot muestra el código de vinculación en la consola y en el panel web, comprueba el token y lo renueva sin reiniciar. |
 | 🗳️ **Rol DJ y votaciones** | Decide qué comandos requieren rol DJ. Votación configurable para saltar canciones. |
 | 📝 **Letras** | `/lyrics` con LRCLIB, sin clave de API. |
 | 🌍 **Multi-idioma** | Español e inglés, por servidor. Las descripciones de los comandos slash también se traducen. Añadir un idioma es copiar un JSON. |

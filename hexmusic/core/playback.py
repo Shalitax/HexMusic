@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import discord
 import wavelink
@@ -215,6 +215,19 @@ async def skip_or_vote(bot: HexMusic, player: HexPlayer, member: discord.Member)
         await player.skip(force=True)
         return True, votes, needed
     return False, votes, needed
+
+
+def rows_to_tracks(rows: list[dict[str, Any]], requester_id: int) -> list[wavelink.Playable]:
+    """Reconstruye las canciones guardadas en una playlist (las que no se puedan leer se omiten)."""
+    tracks: list[wavelink.Playable] = []
+    for row in rows:
+        try:
+            track = wavelink.Playable(row["data"])
+        except (KeyError, TypeError):
+            continue
+        track.extras = {"requester_id": requester_id}
+        tracks.append(track)
+    return tracks
 
 
 def serialize_track(track: wavelink.Playable) -> dict[str, object]:

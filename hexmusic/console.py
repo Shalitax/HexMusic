@@ -90,8 +90,56 @@ class Console:
         elif command in ("idiomas", "reload", "recargar"):
             self.bot.i18n.reload()
             self._print(self.t("console.reloaded", languages=", ".join(self.bot.i18n.languages)))
+        elif command in ("youtube", "yt"):
+            await self.youtube(line.split()[1:])
+        elif command in ("guardar", "save"):
+            count = await self.bot.sessions.save()
+            self._print(self.t("console.saved", count=count))
         elif command in ("detener", "stop", "salir", "exit"):
             self._print(self.t("console.stopping"))
             await self.bot.close()
         else:
             self._print(self.t("console.unknown", command=command))
+
+    async def youtube(self, args: list[str]) -> None:
+        """youtube [estado | vincular | desvincular | token <refresh token>]"""
+        account = self.bot.youtube
+        action = args[0].lower() if args else "estado"
+
+        def yt(key: str, **kwargs: Any) -> str:
+            return self.t(f"youtube.{key}", **kwargs)
+
+        if action in ("estado", "status"):
+            info = account.summary()
+            self._print(yt(f"status_{info['status']}"))
+            if info["code"]:
+                self._print(yt("status_code", url=info["code"]["url"], code=info["code"]["code"]))
+            if info["panel_token"]:
+                self._print(yt("status_panel_token"))
+            return
+
+        if not account.enabled:
+            self._print(yt("disabled"))
+            return
+
+        if action in ("vincular", "link", "codigo", "código"):
+            if not account.start_link():
+                self._print(yt("already_linking"))
+            else:
+                self._print(yt("link_requested"))
+        elif action in ("desvincular", "unlink", "olvidar"):
+            nodes = await account.unlink()
+            self._print(yt("unlinked", nodes=nodes))
+            if account.panel_token:
+                self._print(yt("status_panel_token"))
+        elif action == "token":
+            if len(args) < 2:
+                self._print(yt("usage"))
+                return
+            result = await account.set_token(args[1].strip())
+            self._print(yt("token_saved" if result else "token_unchecked" if result is None else "token_rejected"))
+        elif action in ("cancelar", "cancel"):
+            account.cancel_link()
+            self._print(yt("link_cancelled"))
+        else:
+            self._print(yt("usage"))

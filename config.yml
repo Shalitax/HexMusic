@@ -103,6 +103,9 @@ player:
   delete_old_now_playing: true
   search_autocomplete: true # sugerencias al escribir en /play
   search_results: 10 # resultados de /search (máx. 25)
+  # Guarda la cola y la canción actual y las recupera tras un reinicio o una actualización
+  persist_queue: true
+  persist_interval: 30 # cada cuántos segundos se guarda (también se guarda al apagar)
 
 # Interruptores de funciones
 features:
@@ -138,6 +141,14 @@ dj:
 playlists:
   max_per_user: 25
   max_tracks: 500
+
+# Cuenta de YouTube (solo si YouTube bloquea la IP de tu servidor). El bot muestra el
+# código de vinculación en la consola, guarda el token y se lo entrega a Lavalink.
+# Guía: docs/FUENTES.md → YouTube con cuenta
+youtube:
+  oauth: "${YOUTUBE_OAUTH_ENABLED:-false}"
+  refresh_token: "${YOUTUBE_OAUTH_REFRESH_TOKEN:-}" # opcional: token fijo (si no, se usa el guardado)
+  token_file: "${YOUTUBE_TOKEN_FILE:-data/youtube-refresh-token.txt}"
 
 request_channel:
   channel_name: "hexmusic"

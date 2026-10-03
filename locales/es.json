@@ -58,7 +58,9 @@
     "invalid_language": "Idioma no disponible. Opciones: {languages}.",
     "preset_not_found": "No existe el preset **{name}**. Usa `/filter list` para ver los disponibles.",
     "request_channel_create_failed": "No pude crear el canal. Necesito el permiso **Gestionar canales**.",
-    "not_your_menu": "Este menú no es tuyo. Usa el comando tú mismo."
+    "not_your_menu": "Este menú no es tuyo. Usa el comando tú mismo.",
+    "public_playlist_not_found": "**{user}** no tiene ninguna playlist pública llamada **{name}**.",
+    "import_not_playlist": "Ese enlace no es una playlist ni un álbum. Para añadir una sola canción usa `/playlist add`."
   },
   "nowplaying": {
     "title": "Reproduciendo ahora",
@@ -120,7 +122,8 @@
     "grabbed": "Te he enviado la canción por mensaje privado.",
     "grab_description": "por **{author}** • `{duration}`\nGuardada desde **{guild}**",
     "left_inactive": "Me desconecté por inactividad. Usa `/play` para volver a llamarme.",
-    "left_empty": "Me desconecté porque el canal de voz se quedó vacío."
+    "left_empty": "Me desconecté porque el canal de voz se quedó vacío.",
+    "session_restored": "🔄 He vuelto tras un reinicio: la música sigue donde se quedó."
   },
   "lyrics": {
     "title": "📝 {title} — {artist}",
@@ -150,7 +153,14 @@
     "added": "Añadidas {count} canciones a **{name}**.",
     "removed": "Eliminada **{track}** de **{name}**.",
     "loaded": "Cargando la playlist **{name}** ({count} canciones).",
-    "saved_queue": "Guardadas {count} canciones de la cola en **{name}**."
+    "saved_queue": "Guardadas {count} canciones de la cola en **{name}**.",
+    "list_empty_public": "**{user}** no tiene playlists públicas.",
+    "public_legend": "{mark} = pública (cualquiera puede verla, reproducirla y copiarla)",
+    "imported_new": "Playlist **{name}** creada con {count} canciones.",
+    "imported_existing": "Añadidas {count} canciones a tu playlist **{name}**.",
+    "shared": "🌐 **{name}** ahora es pública. Otros pueden reproducirla con `/playlist play name:{name} user:` y tu usuario, o copiarla con `/playlist copy`.",
+    "unshared": "🔒 **{name}** vuelve a ser privada.",
+    "copied": "Copiadas {count} canciones en tu nueva playlist **{name}**."
   },
   "settings": {
     "title": "⚙️ Ajustes de {guild}",
@@ -204,7 +214,7 @@
   },
   "console": {
     "ready": "Consola activa: escribe 'ayuda' para ver los comandos.",
-    "help": "Comandos de consola:\n  ayuda       Muestra esta ayuda\n  estado      Servidores, reproductores, nodos de Lavalink y panel web\n  servidores  Lista los servidores donde está el bot\n  sync        Registra los comandos slash en Discord\n  idiomas     Recarga los archivos de idioma\n  detener     Apaga el bot de forma ordenada",
+    "help": "Comandos de consola:\n  ayuda        Muestra esta ayuda\n  estado       Servidores, reproductores, nodos de Lavalink y panel web\n  servidores   Lista los servidores donde está el bot\n  sync         Registra los comandos slash en Discord\n  idiomas      Recarga los archivos de idioma\n  youtube      Cuenta de YouTube: youtube [estado | vincular | desvincular | cancelar | token <refresh token>]\n  guardar      Guarda ahora la música que suena (se recupera tras un reinicio)\n  detener      Apaga el bot de forma ordenada",
     "status": "Bot: {user} | Servidores: {servers} | Reproductores: {players} | Lavalink: {online}/{total} nodos | Activo: {uptime} | Panel web: {web}",
     "web_off": "desactivado",
     "servers": "El bot está en {count} servidores:",
@@ -212,14 +222,51 @@
     "reloaded": "Idiomas recargados: {languages}.",
     "stopping": "Apagando el bot...",
     "unknown": "Comando desconocido: {command}. Escribe 'ayuda' para ver la lista.",
-    "error": "Error al ejecutar el comando de consola"
+    "error": "Error al ejecutar el comando de consola",
+    "saved": "Guardado el estado de {count} reproductor(es)."
+  },
+  "youtube": {
+    "link_title": "YOUTUBE: VINCULAR UNA CUENTA DE GOOGLE",
+    "link_step_open": "1) Abre: {url}",
+    "link_step_code": "2) Escribe el código: {code}",
+    "link_step_account": "3) Entra con una cuenta SECUNDARIA (no la personal: YouTube puede bloquearla).",
+    "link_footer": "El código vale {minutes} minutos. Al terminar, el token se guarda solo y no se volverá a pedir.",
+    "link_done": "YOUTUBE: CUENTA VINCULADA. Token guardado y entregado a {nodes} nodo(s) de Lavalink; ya no hace falta reiniciar.",
+    "link_denied": "YouTube: se denegó la vinculación. Escribe 'youtube vincular' para intentarlo de nuevo con la cuenta secundaria.",
+    "link_expired": "YouTube: el código caducó sin validarse. Escribe 'youtube vincular' para generar uno nuevo (no hace falta reiniciar).",
+    "code_failed": "YouTube: no se pudo pedir el código de vinculación a Google ({error}). Prueba 'youtube vincular' en unos minutos.",
+    "stored_token_rejected": "YouTube: Google rechazó el token guardado (cuenta bloqueada, contraseña cambiada o acceso retirado).\nSe ha retirado y ahora se pedirá un código nuevo.",
+    "panel_token_rejected": "YouTube: Google rechazó el token de la variable 'YouTube: refresh token'.\nVacía esa variable en Startup para que no se vuelva a intentar en cada arranque.",
+    "status_off": "YouTube con cuenta: desactivado.",
+    "status_pending": "YouTube con cuenta: sin vincular. Escribe 'youtube vincular' para obtener un código.",
+    "status_linking": "YouTube con cuenta: esperando a que se introduzca el código.",
+    "status_linked": "YouTube con cuenta: vinculada.",
+    "status_unverified": "YouTube con cuenta: token en uso, pero Google no respondió al comprobarlo (se reintentará).",
+    "status_code": "Código pendiente: abre {url} y escribe {code}",
+    "status_panel_token": "Nota: la variable 'YouTube: refresh token' del panel está rellena y tiene prioridad al arrancar.",
+    "disabled": "YouTube con cuenta está desactivado. Actívalo en Startup ('YouTube con cuenta' = 1) o con YOUTUBE_OAUTH_ENABLED=true y reinicia.",
+    "already_linking": "Ya hay un código de vinculación en curso. Escribe 'youtube estado' para verlo o 'youtube cancelar'.",
+    "link_requested": "Pidiendo un código de vinculación a Google...",
+    "link_cancelled": "Vinculación cancelada.",
+    "unlinked": "Cuenta de YouTube desvinculada y retirada de {nodes} nodo(s). Escribe 'youtube vincular' para vincular otra.",
+    "usage": "Uso: youtube [estado | vincular | desvincular | cancelar | token <refresh token>]",
+    "token_saved": "Token de YouTube comprobado, guardado y en uso.",
+    "token_rejected": "Google rechazó ese token. Revisa que esté completo (empieza por 1//).",
+    "token_unchecked": "No se pudo comprobar el token con Google ahora mismo. Inténtalo en unos minutos."
   },
   "web": {
     "login": {
       "subtitle": "Inicia sesión con Discord para gestionar la música de tus servidores.",
       "button": "Iniciar sesión con Discord",
       "error": "No se pudo iniciar sesión. Inténtalo de nuevo.",
-      "language": "Idioma"
+      "language": "Idioma",
+      "retry": "Reintentar",
+      "errors": {
+        "denied": "Cancelaste el inicio de sesión en Discord.",
+        "state": "El inicio de sesión caducó o se abrió desde otra dirección. Vuelve a intentarlo desde este botón.",
+        "config": "Discord rechazó la configuración del panel (Client Secret o Redirect). Avisa al administrador del bot.",
+        "discord": "Discord no respondió. Inténtalo de nuevo en unos segundos."
+      }
     },
     "nav": {
       "stats": "Estadísticas",
@@ -360,7 +407,33 @@
       "deleted": "Playlist eliminada.",
       "remove": "Quitar",
       "empty_tracks": "Esta playlist no tiene canciones.",
-      "add_hint": "Para añadir canciones usa /playlist add en Discord."
+      "add_hint": "También puedes usar /playlist add o /playlist import en Discord.",
+      "public": "Pública",
+      "public_hint": "Cualquiera puede verla, reproducirla y copiarla con /playlist play o /playlist copy indicando tu usuario.",
+      "made_public": "La playlist ahora es pública.",
+      "made_private": "La playlist ahora es privada.",
+      "add_placeholder": "Nombre o enlace (una canción, una playlist o un álbum)",
+      "add": "Añadir",
+      "added": "Se añadieron {count} canciones."
+    },
+    "youtube": {
+      "title": "Cuenta de YouTube",
+      "disabled": "Desactivada. Actívala con 'YouTube con cuenta' en el panel del servidor (o YOUTUBE_OAUTH_ENABLED=true) y reinicia.",
+      "status_off": "Desactivada.",
+      "status_pending": "Sin vincular. Vincula una cuenta solo si YouTube bloquea al servidor.",
+      "status_linking": "Esperando a que se introduzca el código…",
+      "status_linked": "✅ Vinculada: la reproducción usa esta cuenta.",
+      "status_unverified": "⚠️ Token en uso, pero Google no respondió al comprobarlo. Se reintentará solo.",
+      "step_open": "1) Abre",
+      "step_code": "2) Escribe el código",
+      "step_account": "Usa una cuenta de Google SECUNDARIA, nunca la personal: YouTube puede bloquearla.",
+      "link": "Vincular cuenta",
+      "relink": "Vincular otra cuenta",
+      "cancel": "Cancelar",
+      "unlink": "Desvincular",
+      "confirm_unlink": "¿Desvincular la cuenta de YouTube? El token guardado se borrará.",
+      "panel_token": "La variable 'YouTube: refresh token' del servidor está rellena y tiene prioridad al arrancar.",
+      "linked_toast": "Cuenta de YouTube vinculada."
     }
   },
   "_commands": {
@@ -446,6 +519,16 @@
     "Show all commands": "Muestra todos los comandos",
     "Check the bot latency": "Comprueba la latencia del bot",
     "Show bot and Lavalink statistics": "Muestra estadísticas del bot y de Lavalink",
-    "Get the link to invite the bot": "Obtén el enlace para invitar al bot"
+    "Get the link to invite the bot": "Obtén el enlace para invitar al bot",
+    "Show the public playlists of this user": "Muestra las playlists públicas de este usuario",
+    "Owner of the playlist (empty = you)": "Dueño de la playlist (vacío = tú)",
+    "Import a whole playlist or album from a link": "Importa una playlist o un álbum entero desde un enlace",
+    "Link to a playlist or album (YouTube, Spotify, Deezer...)": "Enlace a una playlist o álbum (YouTube, Spotify, Deezer...)",
+    "Name for the playlist (empty = original name)": "Nombre de la playlist (vacío = el original)",
+    "Make a playlist public or private": "Hace una playlist pública o privada",
+    "Public or private (empty = switch)": "Pública o privada (vacío = cambiar)",
+    "Copy someone's public playlist into yours": "Copia la playlist pública de otra persona en las tuyas",
+    "Owner of the playlist": "Dueño de la playlist",
+    "Name for your copy (empty = same name)": "Nombre de tu copia (vacío = el mismo)"
   }
 }

@@ -9,6 +9,7 @@ import secrets
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlsplit
 
 import wavelink
 from aiohttp import web
@@ -139,7 +140,21 @@ class WebPanel:
     async def index(self, request: web.Request) -> web.FileResponse:
         return web.FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})
 
+    def _on_public_origin(self, request: web.Request) -> bool:
+        """¿El navegador está usando la dirección pública configurada (la del Redirect de Discord)?"""
+        public = urlsplit(self.auth.public_url)
+        host = request.headers.get("X-Forwarded-Host", request.host).split(",")[0].strip().lower()
+        scheme = request.headers.get("X-Forwarded-Proto", request.scheme).split(",")[0].strip().lower()
+        return host == public.netloc.lower() and scheme == public.scheme.lower()
+
     async def login(self, request: web.Request) -> web.Response:
+        # Discord devuelve al usuario a public_url: la cookie de estado tiene que crearse en esa misma
+        # dirección o el navegador no la enviará y el inicio de sesión fallará (p. ej. si se abrió el panel
+        # por la IP y public_url es un dominio, o por http y public_url es https). "hop" evita un bucle
+        # detrás de un proxy que no reenvía el Host original.
+        if not request.query.get("hop") and not self._on_public_origin(request):
+            return self._redirect(f"{self.auth.public_url}/auth/login?hop=1")
+
         state = secrets.token_urlsafe(24)
         response = self._redirect(self.auth.login_url(state))
         response.set_cookie(STATE_COOKIE, state, max_age=600, path="/auth", httponly=True, samesite="Lax",
@@ -147,18 +162,35 @@ class WebPanel:
         return response
 
     async def callback(self, request: web.Request) -> web.Response:
+        if request.query.get("error"):
+            # El usuario pulsó "Cancelar" en Discord (access_denied) u otro error de OAuth2
+            log.info("Inicio de sesión del panel cancelado en Discord: %s", request.query.get("error"))
+            return self._redirect("/?login_error=denied")
+
         code = request.query.get("code")
         state = request.query.get("state", "")
         expected = request.cookies.get(STATE_COOKIE, "")
         if not code or not expected or not hmac.compare_digest(state, expected):
-            return self._redirect("/?login_error=1")
+            log.warning("Inicio de sesión del panel rechazado: la cookie de estado no llegó o no coincide "
+                        "(¿el panel se abrió con una dirección distinta de %s?).", self.auth.public_url)
+            return self._redirect("/?login_error=state")
 
         try:
             payload = await self.auth.exchange_code(code)
             token, session = await self.auth.create_session(payload)
-        except (AuthExpired, DiscordAPIError, KeyError, ValueError) as exc:
-            log.warning("Fallo en el inicio de sesión del panel (revisa WEB_CLIENT_SECRET y la URL de redirección): %r", exc)
-            return self._redirect("/?login_error=1")
+        except DiscordAPIError as exc:
+            if exc.status in (400, 401):
+                log.warning("Discord rechazó el código de inicio de sesión (HTTP %s): revisa WEB_CLIENT_SECRET y que el "
+                            "Redirect de OAuth2 sea exactamente %s", exc.status, self.auth.redirect_uri)
+                return self._redirect("/?login_error=config")
+            log.warning("Discord no respondió al iniciar sesión en el panel: %r", exc)
+            return self._redirect("/?login_error=discord")
+        except AuthExpired:
+            log.warning("Discord rechazó las credenciales del panel (HTTP 401): revisa WEB_CLIENT_SECRET.")
+            return self._redirect("/?login_error=config")
+        except (KeyError, ValueError) as exc:
+            log.warning("Respuesta inesperada de Discord al iniciar sesión en el panel: %r", exc)
+            return self._redirect("/?login_error=discord")
 
         response = self._redirect("/")
         response.set_cookie(SESSION_COOKIE, token, max_age=max(60, session.expires_at - int(time.time())), path="/",

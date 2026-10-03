@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS playlists (
     owner_id   INTEGER NOT NULL,
     name       TEXT    NOT NULL COLLATE NOCASE,
     created_at INTEGER NOT NULL,
+    public     INTEGER NOT NULL DEFAULT 0,
     UNIQUE (owner_id, name)
 );
 
@@ -58,7 +59,18 @@ CREATE TABLE IF NOT EXISTS web_sessions (
     csrf_token   TEXT    NOT NULL,
     expires_at   INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS player_sessions (
+    guild_id   INTEGER PRIMARY KEY,
+    data       TEXT    NOT NULL,
+    updated_at INTEGER NOT NULL
+);
 """
+
+# Columnas añadidas después de la primera versión: (tabla, columna, definición)
+MIGRATIONS = [
+    ("playlists", "public", "INTEGER NOT NULL DEFAULT 0"),
+]
 
 
 @dataclass(slots=True)
@@ -100,6 +112,7 @@ class PlaylistInfo:
     name: str
     created_at: int
     track_count: int
+    public: bool = False
 
 
 class Database:
@@ -121,7 +134,16 @@ class Database:
         await self._conn.execute("PRAGMA foreign_keys = ON")
         await self._conn.execute("PRAGMA journal_mode = WAL")
         await self._conn.executescript(SCHEMA)
+        await self._migrate()
         await self._conn.commit()
+
+    async def _migrate(self) -> None:
+        """Añade a una base de datos antigua las columnas que no tenga."""
+        for table, column, definition in MIGRATIONS:
+            async with self.conn.execute(f"PRAGMA table_info({table})") as cursor:
+                columns = {row["name"] for row in await cursor.fetchall()}
+            if column not in columns:
+                await self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
     async def close(self) -> None:
         if self._conn is not None:
@@ -193,29 +215,38 @@ class Database:
         return int(cursor.lastrowid or 0)
 
     _PLAYLIST_SELECT = (
-        "SELECT p.id, p.owner_id, p.name, p.created_at, COUNT(t.id) AS track_count "
+        "SELECT p.id, p.owner_id, p.name, p.created_at, COUNT(t.id) AS track_count, p.public "
         "FROM playlists p LEFT JOIN playlist_tracks t ON t.playlist_id = p.id "
     )
+
+    @staticmethod
+    def _playlist_info(row: aiosqlite.Row) -> PlaylistInfo:
+        values = {key: row[key] for key in row.keys()}
+        values["public"] = bool(values.get("public"))
+        return PlaylistInfo(**values)
 
     async def get_playlist(self, owner_id: int, name: str) -> PlaylistInfo | None:
         async with self.conn.execute(
             self._PLAYLIST_SELECT + "WHERE p.owner_id = ? AND p.name = ? GROUP BY p.id", (owner_id, name)
         ) as cursor:
             row = await cursor.fetchone()
-        return PlaylistInfo(**{key: row[key] for key in row.keys()}) if row else None
+        return self._playlist_info(row) if row else None
 
     async def list_playlists(self, owner_id: int) -> list[PlaylistInfo]:
         async with self.conn.execute(
             self._PLAYLIST_SELECT + "WHERE p.owner_id = ? GROUP BY p.id ORDER BY p.name", (owner_id,)
         ) as cursor:
             rows = await cursor.fetchall()
-        return [PlaylistInfo(**{key: row[key] for key in row.keys()}) for row in rows]
+        return [self._playlist_info(row) for row in rows]
 
-    async def search_playlist_names(self, owner_id: int, text: str, *, limit: int = 25) -> list[str]:
-        async with self.conn.execute(
-            "SELECT name FROM playlists WHERE owner_id = ? AND name LIKE ? ORDER BY name LIMIT ?",
-            (owner_id, f"%{text}%", limit),
-        ) as cursor:
+    async def search_playlist_names(self, owner_id: int, text: str, *, limit: int = 25,
+                                    public_only: bool = False) -> list[str]:
+        query = "SELECT name FROM playlists WHERE owner_id = ? AND name LIKE ? ESCAPE '!' "
+        if public_only:
+            query += "AND public = 1 "
+        # Los comodines de LIKE escritos por el usuario se buscan como texto
+        pattern = text.replace("!", "!!").replace("%", "!%").replace("_", "!_")
+        async with self.conn.execute(query + "ORDER BY name LIMIT ?", (owner_id, f"%{pattern}%", limit)) as cursor:
             rows = await cursor.fetchall()
         return [row["name"] for row in rows]
 
@@ -274,7 +305,7 @@ class Database:
             self._PLAYLIST_SELECT + "WHERE p.owner_id = ? AND p.id = ? GROUP BY p.id", (owner_id, playlist_id)
         ) as cursor:
             row = await cursor.fetchone()
-        return PlaylistInfo(**{key: row[key] for key in row.keys()}) if row else None
+        return self._playlist_info(row) if row else None
 
     async def rename_playlist(self, playlist_id: int, name: str) -> None:
         try:
@@ -282,6 +313,46 @@ class Database:
         except sqlite3.IntegrityError:
             raise HexError("errors.playlist_exists", name=name) from None
         await self.conn.commit()
+
+    async def set_playlist_public(self, playlist_id: int, public: bool) -> None:
+        await self.conn.execute("UPDATE playlists SET public = ? WHERE id = ?", (int(public), playlist_id))
+        await self.conn.commit()
+
+    async def copy_playlist(self, source_id: int, owner_id: int, name: str, *, max_playlists: int = 0,
+                            max_tracks: int = 0) -> int:
+        """Copia las canciones de una playlist en una nueva del usuario. Devuelve cuántas se copiaron."""
+        playlist_id = await self.create_playlist(owner_id, name, limit=max_playlists)
+        limit = f" LIMIT {int(max_tracks)}" if max_tracks else ""
+        cursor = await self.conn.execute(
+            "INSERT INTO playlist_tracks (playlist_id, title, author, uri, length, data) "
+            "SELECT ?, title, author, uri, length, data FROM playlist_tracks WHERE playlist_id = ? ORDER BY id" + limit,
+            (playlist_id, source_id),
+        )
+        await self.conn.commit()
+        return max(0, cursor.rowcount)
+
+    # ───── Estado de los reproductores (cola persistente) ─────
+
+    async def replace_sessions(self, sessions: dict[int, dict[str, Any]]) -> None:
+        now = int(time.time())
+        await self.conn.execute("DELETE FROM player_sessions")
+        if sessions:
+            await self.conn.executemany(
+                "INSERT INTO player_sessions (guild_id, data, updated_at) VALUES (?, ?, ?)",
+                [(guild_id, json.dumps(data), now) for guild_id, data in sessions.items()],
+            )
+        await self.conn.commit()
+
+    async def load_sessions(self) -> dict[int, dict[str, Any]]:
+        async with self.conn.execute("SELECT guild_id, data FROM player_sessions") as cursor:
+            rows = await cursor.fetchall()
+        result: dict[int, dict[str, Any]] = {}
+        for row in rows:
+            try:
+                result[int(row["guild_id"])] = json.loads(row["data"])
+            except (TypeError, ValueError):
+                continue
+        return result
 
     # ───── Sesiones del panel web ─────
 

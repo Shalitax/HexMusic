@@ -47,20 +47,19 @@ Los centros de datos a veces reciben errores como *"Sign in to confirm you're no
 1. **Actualiza el plugin.** Pon la [última versión de youtube-source](https://github.com/lavalink-devs/youtube-source/releases) en `application.yml`. Muchas veces basta con esto.
 
    > **Caso conocido: `TVHTML5 failed: The page needs to be reloaded.`** Desde el 18/08/2026 YouTube rechaza el User-Agent que usa el cliente `TV` en youtube-source 1.18.2 (justo el único que aprovecha la cuenta; PR [#233](https://github.com/lavalink-devs/youtube-source/pull/233)). HexMusic ya trae fijada la compilación corregida (`f45bbb7…` del repositorio de *snapshots*); cuando salga una versión estable con la corrección, se puede volver a `youtube-plugin:1.18.x` con `snapshot: false`.
-2. **OAuth con una cuenta secundaria** (la solución más eficaz):
-   1. Pon `YOUTUBE_OAUTH_ENABLED=true` en `.env` y reinicia Lavalink.
-   2. En el log de Lavalink aparecerá un enlace de Google y un código. Ábrelo e inicia sesión con una **cuenta de Google secundaria**, nunca la personal: existe riesgo de que la bloqueen. El código pertenece al Lavalink que está en marcha: si lo reinicias antes de validarlo, genera uno nuevo y el anterior deja de servir (el log acumula códigos de varios arranques).
-   3. Cuando se complete, el log mostrará un **refresh token**. Guárdalo en `YOUTUBE_OAUTH_REFRESH_TOKEN` (`.env`) o directamente en `refreshToken` de `application.yml`:
-      ```yaml
-      oauth:
-        enabled: ${YOUTUBE_OAUTH_ENABLED:false}
-        refreshToken: "${YOUTUBE_OAUTH_REFRESH_TOKEN:}"
-      ```
-   4. Reinicia Lavalink. A partir de ahí no vuelve a pedir el código.
+2. **OAuth con una cuenta secundaria** (la solución más eficaz). La vinculación la gestiona **el bot**, no Lavalink:
+   1. Pon `YOUTUBE_OAUTH_ENABLED=true` en `.env` y reinicia el bot y Lavalink.
+   2. En cuanto Lavalink está listo, **la consola del bot** (`docker compose logs -f bot`) muestra el recuadro *YOUTUBE: VINCULAR UNA CUENTA DE GOOGLE* con un enlace y un código. Los dueños del bot también lo ven en el [panel web](PANEL_WEB.md) → *Estadísticas*. Ábrelo e inicia sesión con una **cuenta de Google secundaria**, nunca la personal: existe riesgo de que la bloqueen.
+   3. Al completarse, el bot guarda el **refresh token** en `data/youtube-refresh-token.txt` (`YOUTUBE_TOKEN_FILE`) y se lo entrega a Lavalink al momento, sin reiniciar. En cada arranque lo comprueba con Google y se lo vuelve a entregar a cada nodo cuando se conecta (también si Lavalink se reinicia).
+   4. Si Google rechaza el token (cuenta bloqueada, contraseña cambiada), el bot lo aparta como `.invalido` y muestra un código nuevo. Lavalink sigue funcionando mientras tanto.
+
+   Comando de consola `youtube` (con `bot.console` activado): `youtube estado`, `youtube vincular` (código nuevo sin reiniciar), `youtube desvincular`, `youtube cancelar` y `youtube token <refresh token>` para usar uno que ya tengas. `YOUTUBE_OAUTH_REFRESH_TOKEN` en `.env` fija un token concreto y tiene prioridad sobre el guardado.
+
+   > **Por qué no va el token en `application.yml`:** youtube-source intenta renovarlo al arrancar y, si Google lo rechaza, lanza una excepción que impide arrancar a Lavalink (se quedaba reiniciándose en bucle). Por eso `application.yml` lleva `oauth.skipInitialization: true` y sin `refreshToken`: el bot se lo pasa por la API del plugin (`POST /youtube`). Funciona igual con un Lavalink externo que tenga el plugin.
 
    > La cuenta **solo la utiliza el cliente `TV`**, el único que admite OAuth en youtube-source. Ya viene incluido al final de `plugins.youtube.clients`; si lo quitas, la vinculación deja de tener efecto y Lavalink lo avisa con *"OAuth has been enabled without registering any OAuth-compatible clients"*. Si YouTube bloquea casi todo, puedes subir `TV` justo debajo de `MUSIC` para ahorrar los intentos fallidos de los demás clientes.
 
-   > **Con el egg de Pterodactyl no hay que copiar nada:** al activar *YouTube con cuenta*, el código aparece en la consola y el token se guarda solo en `.hex/youtube-refresh-token.txt`. Rellena *YouTube: refresh token* en Startup solo si quieres fijarlo tú.
+   > **Con el egg de Pterodactyl no hay que copiar nada:** al activar *YouTube con cuenta*, el código aparece en la consola del servidor y el token se guarda solo en `.hex/youtube-refresh-token.txt`. Rellena *YouTube: refresh token* en Startup solo si quieres fijarlo tú.
 3. **Servidor de cifrado remoto (yt-cipher).** Es lo que resuelve las firmas que usa el cliente `TV` cuando aparece *`Must find sig function from script`*. La compilación para Pterodactyl lo instala y conecta solo; con Docker, levanta un [yt-cipher](https://github.com/kikkia/yt-cipher) y descomenta el bloque `remoteCipher` de `application.yml`. Como alternativa más sencilla (solo WEB/WEBEMBEDDED) existe el `poToken`. Consulta la [documentación de youtube-source](https://github.com/lavalink-devs/youtube-source#readme).
 
 ---

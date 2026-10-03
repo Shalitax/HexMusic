@@ -127,7 +127,9 @@
     try {
       response = await fetch(path, options);
     } catch {
-      throw new Error(t("errors.network"));
+      const error = new Error(t("errors.network"));
+      error.status = 0;
+      throw error;
     }
     let data = null;
     try {
@@ -139,7 +141,11 @@
       state.me = null;
       render();
     }
-    if (!response.ok) throw new Error((data && data.error) || t("errors.generic"));
+    if (!response.ok) {
+      const error = new Error((data && data.error) || t("errors.generic"));
+      error.status = response.status;
+      throw error;
+    }
     return data;
   }
 
@@ -218,15 +224,17 @@
     clearTimers();
     state.renderId++;
     document.title = state.public.name;
-    const failed = new URLSearchParams(location.search).has("login_error");
-    if (failed) history.replaceState(null, "", location.pathname + location.hash);
+    const reason = new URLSearchParams(location.search).get("login_error");
+    if (reason !== null) history.replaceState(null, "", location.pathname + location.hash);
+    const reasons = (state.strings.login && state.strings.login.errors) || {};
+    const failed = reason === null ? null : (reasons[reason] || t("login.error"));
     app.replaceChildren(
       h("div", { class: "login" },
         h("div", { class: "login-card" },
           avatarImg(state.public.avatar, "login-avatar"),
           h("h1", null, state.public.name),
           h("p", { class: "muted" }, t("login.subtitle")),
-          failed ? h("div", { class: "alert" }, t("login.error")) : null,
+          failed ? h("div", { class: "alert" }, failed) : null,
           h("a", { class: "btn btn-discord", href: "/auth/login" }, t("login.button")),
           h("div", { class: "login-lang" }, langSelect()))),
     );
@@ -364,11 +372,84 @@
     const data = await api("GET", "/api/stats");
     if (!isCurrent(token)) return;
     draw(data);
-    mainEl().replaceChildren(container);
+    const youtube = state.me.owner ? h("section", { class: "panel" }) : null;
+    mainEl().replaceChildren(container, ...(youtube ? [youtube] : []));
+    if (youtube) renderYoutube(youtube, token);
     every(10000, async () => {
       try {
         const fresh = await api("GET", "/api/stats");
         if (isCurrent(token)) draw(fresh);
+      } catch {
+        /* se reintenta en el siguiente ciclo */
+      }
+    });
+  }
+
+  // ───── Cuenta de YouTube (dueños) ─────
+
+  async function renderYoutube(panel, token) {
+    let info;
+    try {
+      info = await api("GET", "/api/youtube");
+    } catch (err) {
+      panel.replaceChildren(h("h2", null, t("youtube.title")), h("p", { class: "muted" }, err.message));
+      return;
+    }
+    if (!isCurrent(token)) return;
+
+    let draw = () => {};
+    const act = async (action, confirmText) => {
+      if (confirmText && !window.confirm(confirmText)) return;
+      try {
+        info = await api("POST", "/api/youtube", { action });
+        draw();
+      } catch (err) {
+        toast(err.message, "error");
+      }
+    };
+
+    draw = () => {
+      const children = [h("h2", null, `📺 ${t("youtube.title")}`)];
+      if (!info.enabled) {
+        children.push(h("p", { class: "muted" }, t("youtube.disabled")));
+        panel.replaceChildren(...children);
+        return;
+      }
+      children.push(h("p", null, t(`youtube.status_${info.status}`)));
+      if (info.code) {
+        children.push(h("div", { class: "notice" },
+          h("div", null, t("youtube.step_open"), " ",
+            h("a", { href: safeUrl(info.code.url) || "#", target: "_blank", rel: "noopener noreferrer" }, info.code.url)),
+          h("div", null, t("youtube.step_code"), " ", h("strong", { class: "code" }, info.code.code)),
+          h("div", { class: "muted small" }, t("youtube.step_account"))));
+      }
+      const buttons = [];
+      if (info.linking) {
+        buttons.push(h("button", { class: "btn", onClick: () => act("cancel") }, t("youtube.cancel")));
+      } else {
+        buttons.push(h("button", { class: "btn btn-primary", onClick: () => act("link") },
+          info.status === "linked" ? t("youtube.relink") : t("youtube.link")));
+      }
+      if (info.status === "linked" || info.status === "unverified") {
+        buttons.push(h("button", { class: "btn btn-danger", onClick: () => act("unlink", t("youtube.confirm_unlink")) },
+          t("youtube.unlink")));
+      }
+      children.push(h("div", { class: "row wrap" }, buttons));
+      if (info.panel_token) children.push(h("p", { class: "muted small" }, t("youtube.panel_token")));
+      panel.replaceChildren(...children);
+    };
+    draw();
+
+    // Mientras se espera la vinculación se consulta el estado para mostrar el resultado en cuanto llegue
+    every(4000, async () => {
+      if (!info.linking) return;
+      try {
+        const fresh = await api("GET", "/api/youtube");
+        if (!isCurrent(token)) return;
+        const finished = !fresh.linking;
+        info = fresh;
+        draw();
+        if (finished && fresh.status === "linked") toast(t("youtube.linked_toast"), "success");
       } catch {
         /* se reintenta en el siguiente ciclo */
       }
@@ -807,7 +888,7 @@
       ? h("div", { class: "playlist-grid" }, data.playlists.map((playlist) => h("div", { class: "playlist-card" },
         h("div", { class: "playlist-icon" }, "📁"),
         h("div", { class: "grow" },
-          h("div", { class: "playlist-name" }, playlist.name),
+          h("div", { class: "playlist-name" }, playlist.public ? `${playlist.name} 🌐` : playlist.name),
           h("div", { class: "muted small" }, t("playlists.tracks", { count: playlist.tracks }))),
         h("button", { class: "btn btn-sm", onClick: () => navigate({ name: "playlist", id: String(playlist.id) }) }, t("playlists.open")))))
       : h("p", { class: "muted" }, t("playlists.empty"));
@@ -864,6 +945,44 @@
     h("label", { class: "check" }, shuffle, t("playlists.shuffle")),
     h("button", { class: "btn btn-primary", type: "submit", disabled: !data.tracks.length }, `▶ ${t("playlists.play")}`));
 
+    const publicBox = h("input", {
+      type: "checkbox",
+      checked: Boolean(data.public),
+      onChange: async () => {
+        try {
+          await api("PATCH", `/api/playlists/${id}`, { public: publicBox.checked });
+          toast(publicBox.checked ? t("playlists.made_public") : t("playlists.made_private"), "success");
+        } catch (err) {
+          publicBox.checked = !publicBox.checked;
+          toast(err.message, "error");
+        }
+      },
+    });
+    const visibility = h("div", null,
+      h("label", { class: "check" }, publicBox, t("playlists.public")),
+      h("p", { class: "muted small" }, t("playlists.public_hint")));
+
+    const addInput = h("input", { class: "input grow", maxlength: 500, placeholder: t("playlists.add_placeholder") });
+    const addButton = h("button", { class: "btn btn-primary", type: "submit" }, t("playlists.add"));
+    const addForm = h("form", {
+      class: "row",
+      onSubmit: async (event) => {
+        event.preventDefault();
+        const query = addInput.value.trim();
+        if (!query) return;
+        addButton.disabled = true;
+        try {
+          const result = await api("POST", `/api/playlists/${id}/tracks`, { query });
+          toast(t("playlists.added", { count: result.added }), "success");
+          renderMain();
+        } catch (err) {
+          toast(err.message, "error");
+        } finally {
+          addButton.disabled = false;
+        }
+      },
+    }, addInput, addButton);
+
     const remove = h("button", {
       class: "btn btn-danger",
       onClick: async () => {
@@ -900,9 +1019,11 @@
 
     mainEl().replaceChildren(
       h("div", null, h("button", { class: "btn btn-ghost btn-sm", onClick: () => navigate({ name: "playlists" }) }, `← ${t("playlists.back")}`)),
-      h("section", { class: "panel" }, h("h2", null, t("playlists.manage")), rename, play, h("div", { class: "row end" }, remove)),
+      h("section", { class: "panel" }, h("h2", null, t("playlists.manage")), rename, play, visibility,
+        h("div", { class: "row end" }, remove)),
       h("section", { class: "panel" },
         h("h2", null, t("playlists.tracks", { count: data.tracks.length })),
+        addForm,
         tracks,
         h("p", { class: "muted small" }, t("playlists.add_hint"))),
     );
@@ -927,8 +1048,16 @@
     }
     try {
       state.me = await api("GET", "/api/me");
-    } catch {
+    } catch (err) {
       state.me = null;
+      if (err.status !== 401) {
+        // La sesión sigue siendo válida pero Discord o el panel fallaron: no se muestra como sesión cerrada
+        app.replaceChildren(h("div", { class: "login" }, h("div", { class: "login-card" },
+          avatarImg(state.public.avatar, "login-avatar"),
+          h("div", { class: "alert" }, err.message),
+          h("button", { class: "btn btn-primary", onClick: () => boot() }, t("login.retry")))));
+        return;
+      }
     }
     state.view = hashToView();
     render();

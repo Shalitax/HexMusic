@@ -122,9 +122,11 @@ El panel usa una API JSON que puedes aprovechar desde tus propias herramientas c
 | GET | `/api/guilds/{id}/player` | Estado del reproductor y cola |
 | POST | `/api/guilds/{id}/player` | Acción: `{"action": "play", "query": "…"}`, `pause`, `skip`, `previous`, `stop`, `volume`, `seek`, `loop`, `autoplay`, `filter`, `shuffle`, `clear`, `remove`, `move`, `skipto`, `join`, `leave` |
 | GET / POST | `/api/playlists` | Lista o crea playlists |
-| GET / PATCH / DELETE | `/api/playlists/{id}` | Ver, renombrar o borrar |
+| GET / PATCH / DELETE | `/api/playlists/{id}` | Ver, cambiar (`name`, `public`) o borrar |
+| POST | `/api/playlists/{id}/tracks` | Añadir una canción o una playlist/álbum entero: `{"query": "…"}` |
 | DELETE | `/api/playlists/{id}/tracks/{posición}` | Quitar una canción |
 | POST | `/api/playlists/{id}/play` | Reproducir en un servidor: `{"guild_id": "…"}` |
+| GET / POST | `/api/youtube` | Solo dueños: estado de la cuenta de YouTube y acciones `{"action": "link" \| "cancel" \| "unlink"}` |
 
 Los errores devuelven `{"error": "mensaje traducido"}` con el código HTTP correspondiente.
 
@@ -135,7 +137,9 @@ Los errores devuelven `{"error": "mensaje traducido"}` con el código HTTP corre
 | Síntoma | Solución |
 |---|---|
 | *Invalid OAuth2 redirect_uri* | El Redirect de Discord no coincide con `WEB_PUBLIC_URL/auth/callback`. Revisa protocolo, puerto y barra final |
-| Vuelve al login con *"No se pudo iniciar sesión"* | `WEB_CLIENT_SECRET` incorrecto o caducado. Genera uno nuevo. En el log del bot aparece el motivo |
+| *"Discord rechazó la configuración del panel"* | `WEB_CLIENT_SECRET` incorrecto o regenerado, o el Redirect no es exactamente `WEB_PUBLIC_URL/auth/callback`. El log del bot dice cuál |
+| *"El inicio de sesión caducó o se abrió desde otra dirección"* | Abre el panel con la dirección de `WEB_PUBLIC_URL`. El botón de login ya redirige a ella; si estás detrás de un proxy, reenvía `Host` y `X-Forwarded-Proto` |
+| Aparece un error con *Reintentar* en vez del panel | Discord no respondió o limitó las peticiones; la sesión sigue abierta. Pulsa *Reintentar* |
 | El navegador no carga la página | Comprueba que `WEB_ENABLED=true`, que el puerto está publicado (Docker o firewall) y que el log dice *Panel web disponible* |
 | `No se pudo iniciar el panel web en el puerto…` | Otro programa usa ese puerto: cambia `WEB_PORT` |
 | No aparece un servidor | Necesitas *Gestionar servidor* en él. Los cambios de permisos tardan hasta 2 minutos en reflejarse |

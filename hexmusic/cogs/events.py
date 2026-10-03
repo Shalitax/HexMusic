@@ -52,16 +52,28 @@ class Events(commands.Cog):
     @commands.Cog.listener()
     async def on_wavelink_node_ready(self, payload: wavelink.NodeReadyEventPayload) -> None:
         log.info("Nodo Lavalink %r listo (sesión reanudada: %s)", payload.node.identifier, payload.resumed)
-        if not self._restored:
-            self._restored = True
-            self._spawn(self._restore_247())
+        first = not self._restored
+        self._restored = True
+        self._spawn(self._node_ready(payload.node, restore=first))
+
+    async def _node_ready(self, node: wavelink.Node, *, restore: bool) -> None:
+        # La cuenta de YouTube va primero para que lo restaurado ya suene con ella
+        try:
+            await self.bot.youtube.on_node_ready(node)
+        except Exception:  # noqa: BLE001 - un fallo con YouTube no debe impedir restaurar la música
+            log.exception("Error al entregar la cuenta de YouTube al nodo %r", node.identifier)
+        if restore:
+            await self.bot.wait_until_ready()
+            restored = await self.bot.sessions.restore()
+            if restored:
+                log.info("Música recuperada en %d servidor(es) tras el reinicio.", len(restored))
+            await self._restore_247()
 
     @commands.Cog.listener()
     async def on_wavelink_node_disconnected(self, payload: wavelink.NodeDisconnectedEventPayload) -> None:
         log.warning("Nodo Lavalink %r desconectado; wavelink intentará reconectar.", payload.node.identifier)
 
     async def _restore_247(self) -> None:
-        await self.bot.wait_until_ready()
         if not self.bot.feature("stay_247"):
             return
         for settings in await self.bot.db.guilds_with_247():

@@ -132,6 +132,10 @@ class Settings(commands.Cog):
     async def settings_reset(self, ctx: commands.Context) -> None:
         await self.bot.db.update_guild(ctx.guild.id, language=None, prefix=None, dj_role_id=None, default_volume=None,
                                        vote_skip=None, announce=None, autoplay=False)
+        player = get_player(ctx.guild)
+        if player is not None:
+            player.autoplay_enabled = False
+            player.sync_autoplay()
         await self.bot.respond(ctx, "settings.reset")
 
     # ───── Canal de peticiones ─────

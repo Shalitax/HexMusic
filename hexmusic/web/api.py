@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import math
 import platform
 import random
@@ -15,7 +16,8 @@ from aiohttp import web
 from .. import __version__
 from ..checks import get_player
 from ..core.panel import edit_panel, refresh_panel
-from ..core.playback import SOURCE_LABELS, add_tracks, connect_player, enqueue
+from ..core.playback import (SOURCE_LABELS, add_tracks, connect_player, enqueue, rows_to_tracks, search_tracks,
+                             serialize_track)
 from ..core.presets import build_filters, get_presets
 from ..database import clean_playlist_name
 from ..errors import HexError
@@ -85,6 +87,9 @@ class Api:
         router.add_delete("/api/playlists/{playlist_id}", self.delete_playlist)
         router.add_delete("/api/playlists/{playlist_id}/tracks/{index}", self.remove_playlist_track)
         router.add_post("/api/playlists/{playlist_id}/play", self.play_playlist)
+        router.add_post("/api/playlists/{playlist_id}/tracks", self.add_playlist_tracks)
+        router.add_get("/api/youtube", self.youtube)
+        router.add_post("/api/youtube", self.youtube_action)
 
     # ───── Utilidades ─────
 
@@ -549,8 +554,8 @@ class Api:
     async def playlists(self, request: web.Request) -> web.Response:
         items = await self.bot.db.list_playlists(self.session(request).user_id)
         return web.json_response({
-            "playlists": [{"id": item.id, "name": item.name, "tracks": item.track_count, "created_at": item.created_at}
-                          for item in items],
+            "playlists": [{"id": item.id, "name": item.name, "tracks": item.track_count, "created_at": item.created_at,
+                           "public": item.public} for item in items],
             "limits": {"max_playlists": int(self.bot.config.playlists.max_per_user),
                        "max_tracks": int(self.bot.config.playlists.max_tracks)},
         })
@@ -568,6 +573,7 @@ class Api:
         return web.json_response({
             "id": playlist.id,
             "name": playlist.name,
+            "public": playlist.public,
             "tracks": [
                 {"index": index, "title": row["title"], "author": row["author"], "uri": row["uri"], "length": row["length"] or 0}
                 for index, row in enumerate(rows, start=1)
@@ -575,11 +581,35 @@ class Api:
         })
 
     async def rename_playlist(self, request: web.Request) -> web.Response:
+        """Cambia el nombre y/o la visibilidad (pública o privada) de una playlist."""
         playlist = await self._playlist(request)
         data = await self.body(request)
-        name = clean_playlist_name(str(data.get("name") or ""))
-        await self.bot.db.rename_playlist(playlist.id, name)
-        return web.json_response({"id": playlist.id, "name": name})
+        if "public" in data:
+            if not isinstance(data["public"], bool):
+                raise _invalid()
+            await self.bot.db.set_playlist_public(playlist.id, data["public"])
+        name = playlist.name
+        if "name" in data:
+            name = clean_playlist_name(str(data.get("name") or ""))
+            await self.bot.db.rename_playlist(playlist.id, name)
+        return web.json_response({"id": playlist.id, "name": name, "public": data.get("public", playlist.public)})
+
+    async def add_playlist_tracks(self, request: web.Request) -> web.Response:
+        """Añade una canción, o todas las de un enlace a playlist/álbum, a la playlist."""
+        playlist = await self._playlist(request)
+        data = await self.body(request)
+        query = str(data.get("query") or "").strip()
+        if not query or len(query) > 500:
+            raise _invalid()
+        results = await search_tracks(self.bot, query, str(data["source"]) if data.get("source") else None)
+        if not results:
+            raise HexError("errors.no_results", query=query)
+        tracks = list(results.tracks) if isinstance(results, wavelink.Playlist) else [results[0]]
+        limit = int(self.bot.config.playlists.max_tracks)
+        added = await self.bot.db.add_tracks(playlist.id, [serialize_track(track) for track in tracks], limit=limit)
+        if added == 0:
+            raise HexError("errors.playlist_full", limit=limit)
+        return web.json_response({"added": added})
 
     async def delete_playlist(self, request: web.Request) -> web.Response:
         playlist = await self._playlist(request)
@@ -605,14 +635,7 @@ class Api:
         if guild is None:
             raise ApiError(404, "web.errors.bot_not_in_guild")
 
-        tracks: list[wavelink.Playable] = []
-        for row in await self.bot.db.get_tracks(playlist.id):
-            try:
-                track = wavelink.Playable(row["data"])
-            except (KeyError, TypeError):
-                continue
-            track.extras = {"requester_id": session.user_id}
-            tracks.append(track)
+        tracks = rows_to_tracks(await self.bot.db.get_tracks(playlist.id), session.user_id)
         if not tracks:
             raise HexError("errors.playlist_empty", name=playlist.name)
         if data.get("shuffle"):
@@ -623,3 +646,34 @@ class Api:
             player = await self._connect(guild, session.user_id, data.get("channel_id"))
         result = await add_tracks(self.bot, player, tracks)
         return web.json_response({"added": len(result.tracks)})
+
+    # ───── Cuenta de YouTube (solo dueños del bot) ─────
+
+    async def _require_owner(self, request: web.Request) -> None:
+        if not await self.auth.is_owner(self.session(request)):
+            raise ApiError(403, "web.errors.forbidden")
+
+    async def youtube(self, request: web.Request) -> web.Response:
+        await self._require_owner(request)
+        return web.json_response(self.bot.youtube.summary())
+
+    async def youtube_action(self, request: web.Request) -> web.Response:
+        await self._require_owner(request)
+        account = self.bot.youtube
+        if not account.enabled:
+            raise ApiError(400, "web.youtube.disabled")
+        action = str((await self.body(request)).get("action") or "")
+        if action == "link":
+            account.start_link()
+            # El código llega de Google en un instante: se espera un poco para devolverlo ya en la respuesta
+            for _ in range(20):
+                if account.code is not None or not account.linking:
+                    break
+                await asyncio.sleep(0.25)
+        elif action == "cancel":
+            account.cancel_link()
+        elif action == "unlink":
+            await account.unlink()
+        else:
+            raise _invalid()
+        return web.json_response(account.summary())

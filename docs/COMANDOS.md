@@ -71,18 +71,21 @@ Leyenda de la columna **Acceso**:
 
 ## 📁 Playlists
 
-Las playlists son **de cada usuario** y funcionan en cualquier servidor donde esté el bot.
+Las playlists son **de cada usuario** y funcionan en cualquier servidor donde esté el bot. Se pueden hacer **públicas** (🌐) para que otros las vean, reproduzcan o copien indicando tu usuario.
 
 | Comando | Alias | Descripción |
 |---|---|---|
-| `/playlist list` | `pl` | Tus playlists |
+| `/playlist list [usuario]` | `pl` | Tus playlists, o las públicas de otro usuario |
 | `/playlist create <nombre>` | `new` | Crea una playlist |
 | `/playlist delete <nombre>` | `del` | Elimina una playlist |
-| `/playlist show <nombre>` | `view` | Muestra sus canciones |
+| `/playlist show <nombre> [usuario]` | `view` | Muestra sus canciones (con usuario: una playlist pública suya) |
 | `/playlist add <nombre> [búsqueda]` | — | Añade la canción actual o una búsqueda o enlace (las playlists de Spotify, YouTube… se añaden enteras) |
+| `/playlist import <enlace> [nombre]` | — | Crea una playlist con todas las canciones de una playlist o álbum (YouTube, Spotify, Deezer…). Si ya tienes una con ese nombre, las añade |
 | `/playlist savequeue <nombre>` | `sq` | Guarda la canción actual y la cola |
 | `/playlist remove <nombre> <posición>` | `rm` | Quita una canción |
-| `/playlist play <nombre> [mezclar]` | `load` | Añade la playlist a la cola |
+| `/playlist play <nombre> [usuario] [mezclar]` | `load` | Añade la playlist a la cola (con usuario: una playlist pública suya) |
+| `/playlist share <nombre> [pública]` | `public` | Hace la playlist pública o privada (sin valor: cambia) |
+| `/playlist copy <usuario> <nombre> [nuevo nombre]` | `clone` | Copia la playlist pública de otra persona en las tuyas |
 
 ---
 

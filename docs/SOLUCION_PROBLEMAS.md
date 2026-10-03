@@ -63,9 +63,10 @@ YouTube está bloqueando la IP del servidor. Sigue [Fuentes → Si YouTube bloqu
 
 Al vincular, ten en cuenta:
 
-- El **refresh token** debe quedar guardado (en `.env`, en `application.yml` o, con el egg, en `.hex/`): si no, cada reinicio vuelve a pedir el código.
-- El código **caduca y solo sirve para el Lavalink en curso**; si validas uno de un arranque anterior, no hace nada.
+- El código aparece en la **consola del bot** (y en el panel web para los dueños). Si caduca o se deniega, escribe `youtube vincular` en la consola para obtener otro **sin reiniciar**.
+- El **refresh token** se guarda solo (`data/youtube-refresh-token.txt` o, con el egg, `.hex/`). Si Google lo rechaza, el bot lo aparta y pide un código nuevo; si el rechazado es el de `YOUTUBE_OAUTH_REFRESH_TOKEN`, vacía esa variable.
 - La vinculación **solo la usa el cliente `TV`**: si tu lista de clientes no lo incluye, vincular la cuenta no cambia la reproducción.
+- Lavalink que se reinicia en bucle justo después de vincular una cuenta: tu `application.yml` es antiguo y todavía lleva `refreshToken`. Actualízalo (ahora el token lo entrega el bot).
 
 Si el error es *`Client [TVHTML5] failed: The page needs to be reloaded.`*, no es culpa del token: es un fallo de youtube-source 1.18.2 (YouTube cambió su política de User-Agent el 18/08/2026). Actualiza el bot: HexMusic ya fija la compilación corregida del plugin. Si después aparece *`Must find sig function from script`*, YouTube ha vuelto a cambiar el script del reproductor: hace falta un servidor de cifrado remoto. La compilación de HexMusic para Pterodactyl ya lo instala y conecta solo (yt-cipher); con Docker, levanta un [yt-cipher](https://github.com/kikkia/yt-cipher) y descomenta el bloque `remoteCipher` de `application.yml`.
 

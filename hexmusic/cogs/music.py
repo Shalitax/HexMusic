@@ -168,6 +168,7 @@ class Music(commands.Cog):
         player = self._player(ctx)
         if player.paused:
             raise HexError("errors.already_paused")
+        player.paused_by_empty = False
         await player.pause(True)
         await self.bot.respond(ctx, "music.paused")
 
