@@ -16,6 +16,7 @@ from ..core.playback import enqueue, ensure_player
 from ..errors import HexError
 from ..player import HexPlayer
 from ..ui import embeds
+from ..utils.files import display_title, is_audio_attachment
 from ..utils.formatting import escape, truncate
 
 if TYPE_CHECKING:
@@ -207,7 +208,9 @@ class Events(commands.Cog):
             await message.delete(delay=delete_after)
             return
 
-        query = message.content.strip() or (message.attachments[0].url if message.attachments else "")
+        attachment = next((item for item in message.attachments if is_audio_attachment(item)), None)
+        query = message.content.strip() or (attachment.url if attachment else "")
+        title = display_title(attachment.filename) if attachment and not message.content.strip() else None
         try:
             await message.delete(delay=0.5)
         except discord.HTTPException:
@@ -219,7 +222,7 @@ class Events(commands.Cog):
         try:
             async with message.channel.typing():
                 player = await ensure_player(self.bot, message.author, message.channel)
-                result = await enqueue(self.bot, player, message.author, query)
+                result = await enqueue(self.bot, player, message.author, query, title=title)
             embed = embeds.enqueue_embed(self.bot, lang, result)
         except HexError as exc:
             embed = embeds.error_embed(self.bot, self.bot.i18n.t(lang, exc.key, **exc.kwargs))

@@ -17,7 +17,7 @@ from .. import __version__
 from ..checks import get_player
 from ..core.panel import edit_panel, refresh_panel
 from ..core.playback import (SOURCE_LABELS, add_tracks, connect_player, enqueue, rows_to_tracks, search_tracks,
-                             serialize_track)
+                             serialize_tracks)
 from ..core.presets import build_filters, get_presets
 from ..database import clean_playlist_name
 from ..errors import HexError
@@ -606,7 +606,7 @@ class Api:
             raise HexError("errors.no_results", query=query)
         tracks = list(results.tracks) if isinstance(results, wavelink.Playlist) else [results[0]]
         limit = int(self.bot.config.playlists.max_tracks)
-        added = await self.bot.db.add_tracks(playlist.id, [serialize_track(track) for track in tracks], limit=limit)
+        added = await self.bot.db.add_tracks(playlist.id, serialize_tracks(tracks), limit=limit)
         if added == 0:
             raise HexError("errors.playlist_full", limit=limit)
         return web.json_response({"added": added})

@@ -18,6 +18,7 @@ from ..player import HexPlayer
 from ..ui import embeds
 from ..ui.menu import MenuView
 from ..ui.views import Paginator, SearchView
+from ..utils.files import AUDIO_EXTENSIONS, display_title, is_audio_attachment
 from ..utils.formatting import escape, format_duration, parse_time, track_link, truncate
 from ..utils.lyrics import fetch_lyrics
 
@@ -63,33 +64,53 @@ class Music(commands.Cog):
 
     # ───── Reproducir ─────
 
+    async def _play(self, ctx: commands.Context, query: str | None, file: discord.Attachment | None,
+                    source: str | None, *, play_next: bool) -> None:
+        if file is None and not (query or "").strip():
+            raise HexError("errors.play_needs_query")
+        if file is not None and not is_audio_attachment(file):
+            raise HexError("errors.library_bad_format", formats=", ".join(sorted(e.lstrip(".") for e in AUDIO_EXTENSIONS)))
+        await ctx.defer()
+        player = await ensure_player(self.bot, ctx.author, ctx.channel)
+        if file is not None:
+            # El enlace del adjunto caduca en ~24 h: suena ya, pero para conservarlo está /upload
+            result = await enqueue(self.bot, player, ctx.author, file.url, play_next=play_next,
+                                   title=display_title(file.filename))
+        else:
+            result = await enqueue(self.bot, player, ctx.author, str(query), source=source, play_next=play_next)
+        await ctx.send(embed=embeds.enqueue_embed(self.bot, await self.bot.lang_for(ctx.guild.id), result))
+
     @commands.hybrid_command(name="play", aliases=["p"],
                              description="Play a song, playlist or link from any supported platform")
-    @app_commands.describe(query="Song name or link (YouTube, Spotify, Tidal, Deezer, SoundCloud...)",
+    @app_commands.describe(file="Audio file to play (mp3, flac, ogg...)",
+                           query="Song name or link (YouTube, Spotify, Tidal, Deezer, SoundCloud...)",
                            source="Platform to search on when you type a name")
     @app_commands.choices(source=SOURCE_CHOICES)
     @commands.guild_only()
     @music_check(player=False)
-    async def play(self, ctx: commands.Context, *, query: str, source: Optional[str] = None) -> None:
-        await ctx.defer()
-        player = await ensure_player(self.bot, ctx.author, ctx.channel)
-        result = await enqueue(self.bot, player, ctx.author, query, source=source)
-        await ctx.send(embed=embeds.enqueue_embed(self.bot, await self.bot.lang_for(ctx.guild.id), result))
+    async def play(self, ctx: commands.Context, file: Optional[discord.Attachment] = None, *,
+                   query: Optional[str] = None, source: Optional[str] = None) -> None:
+        await self._play(ctx, query, file, source, play_next=False)
 
     @play.autocomplete("query")
     async def play_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         current = current.strip()
-        if not self.bot.config.player.search_autocomplete or len(current) < 3 or current.startswith(("http://", "https://")):
-            return []
+        is_link = current.startswith(("http://", "https://"))
+        choices: list[app_commands.Choice[str]] = []
+        # Primero los archivos de la biblioteca del servidor que coinciden
+        if interaction.guild_id and self.bot.library.running and not is_link:
+            for entry in await self.bot.db.search_library(interaction.guild_id, current, limit=5):
+                choices.append(app_commands.Choice(name=truncate(f"📚 {entry.title}", 100), value=f"library:{entry.id}"))
+        if not self.bot.config.player.search_autocomplete or len(current) < 3 or is_link:
+            return choices
         source = getattr(interaction.namespace, "source", None)
         try:
             results = await asyncio.wait_for(search_tracks(self.bot, current, source), timeout=2.5)
         except Exception:  # noqa: BLE001 - el autocompletado nunca debe fallar
-            return []
+            return choices
         if isinstance(results, wavelink.Playlist):
-            return []
+            return choices
 
-        choices = []
         for track in results[:10]:
             if not track.uri or len(track.uri) > 100:
                 continue
@@ -100,16 +121,17 @@ class Music(commands.Cog):
         return choices
 
     @commands.hybrid_command(name="playnext", aliases=["pn", "playtop"], description="Add a song to the front of the queue")
-    @app_commands.describe(query="Song name or link (YouTube, Spotify, Tidal, Deezer, SoundCloud...)",
+    @app_commands.describe(file="Audio file to play (mp3, flac, ogg...)",
+                           query="Song name or link (YouTube, Spotify, Tidal, Deezer, SoundCloud...)",
                            source="Platform to search on when you type a name")
     @app_commands.choices(source=SOURCE_CHOICES)
     @commands.guild_only()
     @music_check(player=False)
-    async def playnext(self, ctx: commands.Context, *, query: str, source: Optional[str] = None) -> None:
-        await ctx.defer()
-        player = await ensure_player(self.bot, ctx.author, ctx.channel)
-        result = await enqueue(self.bot, player, ctx.author, query, source=source, play_next=True)
-        await ctx.send(embed=embeds.enqueue_embed(self.bot, await self.bot.lang_for(ctx.guild.id), result))
+    async def playnext(self, ctx: commands.Context, file: Optional[discord.Attachment] = None, *,
+                       query: Optional[str] = None, source: Optional[str] = None) -> None:
+        await self._play(ctx, query, file, source, play_next=True)
+
+    playnext.autocomplete("query")(play_autocomplete)
 
     @commands.hybrid_command(name="search", aliases=["find"], description="Search for songs and pick the one to play")
     @app_commands.describe(query="What to search for", source="Platform to search on when you type a name")

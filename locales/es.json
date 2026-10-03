@@ -61,7 +61,20 @@
     "not_your_menu": "Este menú no es tuyo. Usa el comando tú mismo.",
     "public_playlist_not_found": "**{user}** no tiene ninguna playlist pública llamada **{name}**.",
     "import_not_playlist": "Ese enlace no es una playlist ni un álbum. Para añadir una sola canción usa `/playlist add`.",
-    "queue_changed": "Esa canción ya no está en la cola. Abre el menú de nuevo para ver la cola actual."
+    "queue_changed": "Esa canción ya no está en la cola. Abre el menú de nuevo para ver la cola actual.",
+    "play_needs_query": "Escribe el nombre o enlace de una canción, o adjunta un archivo de audio.",
+    "library_bad_format": "Ese archivo no es de audio. Formatos admitidos: {formats}.",
+    "library_file_too_big": "El archivo es demasiado grande (máximo {max} MB).",
+    "library_full_files": "La biblioteca del servidor está llena (máximo {max} archivos). Borra alguno con `/library delete`.",
+    "library_full_space": "No queda espacio en la biblioteca ({used} de {max} MB usados). Borra algún archivo con `/library delete`.",
+    "library_download_failed": "No pude descargar el archivo de Discord. Inténtalo de nuevo.",
+    "library_invalid_file": "No se puede reproducir ese archivo: puede estar dañado o en un formato que el servidor de audio no admite.",
+    "library_unavailable": "La biblioteca no está disponible ahora mismo (el servidor de archivos no arrancó; revisa la consola).",
+    "library_missing_file": "El archivo de **{title}** ya no está en el servidor. Bórralo de la biblioteca y vuelve a subirlo.",
+    "library_not_found": "No hay ningún archivo llamado **{name}** en la biblioteca del servidor.",
+    "library_dj_only": "Solo los administradores o quien tenga el rol DJ pueden gestionar la biblioteca.",
+    "library_empty": "La biblioteca del servidor está vacía.",
+    "attachment_not_storable": "Los archivos adjuntos en Discord no se pueden guardar en una playlist: su enlace caduca en un día. Súbelo a la biblioteca con `/upload` y añádelo desde allí."
   },
   "nowplaying": {
     "title": "Reproduciendo ahora",
@@ -199,7 +212,8 @@
       "filters": "🎛️ Filtros",
       "playlists": "📁 Playlists",
       "settings": "⚙️ Ajustes",
-      "general": "ℹ️ General"
+      "general": "ℹ️ General",
+      "library": "📚 Biblioteca"
     }
   },
   "general": {
@@ -230,6 +244,17 @@
     "error": "Error al ejecutar el comando de consola",
     "saved": "Guardado el estado de {count} reproductor(es)."
   },
+  "library": {
+    "author": "Biblioteca",
+    "title": "📚 Biblioteca de {guild}",
+    "uploaded": "Guardado en la biblioteca: **{title}** (`{duration}`). Reprodúcelo con `/library play` o búscalo en `/play`.",
+    "usage": "{count} archivos · {used} de {max}",
+    "empty": "La biblioteca del servidor está vacía. Sube un archivo de audio con `/upload` (o `{prefix}upload` con el archivo adjunto).",
+    "hint": "Reproduce con `/library play`, todo con `/library playall` o desde `/menu` → Biblioteca.",
+    "playing_all": "Añadidos {count} archivos de la biblioteca a la cola.",
+    "renamed": "**{old}** ahora se llama **{new}**.",
+    "deleted": "Borrado de la biblioteca: **{title}**."
+  },
   "menu": {
     "title": "Menú de {name}",
     "choose_section": "Elige una sección",
@@ -238,7 +263,8 @@
       "queue": "Cola",
       "filters": "Filtros",
       "playlists": "Mis playlists",
-      "settings": "Ajustes del servidor"
+      "settings": "Ajustes del servidor",
+      "library": "Biblioteca"
     },
     "player_title": "🎵 Reproductor",
     "nothing_playing": "No está sonando nada. Pulsa **Añadir** para poner una canción (tienes que estar en un canal de voz).",
@@ -265,7 +291,11 @@
     "playlist_name": "Nombre de la playlist",
     "dj_role_placeholder": "Elige el rol DJ",
     "clear_dj_role": "Quitar rol DJ",
-    "volume_label": "Volumen inicial (0-{max})"
+    "volume_label": "Volumen inicial (0-{max})",
+    "upload_hint": "Sube archivos con /upload",
+    "library_play": "▶️ Reproducir un archivo…",
+    "library_delete": "🗑️ Borrar un archivo…",
+    "library_play_all": "Reproducir todo (mezclado)"
   },
   "youtube": {
     "link_title": "YOUTUBE: VINCULAR UNA CUENTA DE GOOGLE",
@@ -572,6 +602,21 @@
     "Copy someone's public playlist into yours": "Copia la playlist pública de otra persona en las tuyas",
     "Owner of the playlist": "Dueño de la playlist",
     "Name for your copy (empty = same name)": "Nombre de tu copia (vacío = el mismo)",
-    "Open a menu to control the music, queue, filters and playlists": "Abre un menú para controlar la música, la cola, los filtros y las playlists"
+    "Open a menu to control the music, queue, filters and playlists": "Abre un menú para controlar la música, la cola, los filtros y las playlists",
+    "Audio file to play (mp3, flac, ogg...)": "Archivo de audio a reproducir (mp3, flac, ogg...)",
+    "Upload an audio file to the server library": "Sube un archivo de audio a la biblioteca del servidor",
+    "Audio file (mp3, flac, ogg, wav, m4a...)": "Archivo de audio (mp3, flac, ogg, wav, m4a...)",
+    "Title to show (empty = from the file)": "Título a mostrar (vacío = el del archivo)",
+    "The server library of uploaded audio files": "La biblioteca de archivos de audio del servidor",
+    "Play a file from the server library": "Reproduce un archivo de la biblioteca del servidor",
+    "File to play": "Archivo a reproducir",
+    "Play it right after the current song": "Reproducirlo justo después de la canción actual",
+    "Play every file in the server library": "Reproduce todos los archivos de la biblioteca",
+    "Shuffle the files before playing": "Mezcla los archivos antes de reproducir",
+    "Rename a file in the server library": "Cambia el título de un archivo de la biblioteca",
+    "File to rename": "Archivo a renombrar",
+    "New title": "Nuevo título",
+    "Delete a file from the server library": "Borra un archivo de la biblioteca del servidor",
+    "File to delete": "Archivo a borrar"
   }
 }

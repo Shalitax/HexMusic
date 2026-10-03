@@ -17,11 +17,11 @@ import discord
 from ..checks import get_player
 from ..core.controls import controllable_player, perform
 from ..core.panel import edit_panel
-from ..core.playback import add_tracks, enqueue, ensure_player, rows_to_tracks, serialize_track
+from ..core.playback import add_tracks, enqueue, ensure_player, rows_to_tracks, serialize_tracks
 from ..database import PlaylistInfo, clean_playlist_name
 from ..errors import HexError
 from ..player import HexPlayer
-from ..utils.formatting import escape, truncate
+from ..utils.formatting import escape, format_duration, truncate
 from . import embeds
 from .views import filter_options, track_option
 
@@ -30,8 +30,8 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("hexmusic.menu")
 
-SECTIONS = ("player", "queue", "filters", "playlists", "settings")
-SECTION_EMOJIS = {"player": "🎵", "queue": "📜", "filters": "🎛️", "playlists": "📁", "settings": "⚙️"}
+SECTIONS = ("player", "queue", "filters", "playlists", "library", "settings")
+SECTION_EMOJIS = {"player": "🎵", "queue": "📜", "filters": "🎛️", "playlists": "📁", "library": "📚", "settings": "⚙️"}
 PAGE_SIZE = 10
 MAX_OPTIONS = 25
 
@@ -181,9 +181,13 @@ class MenuView(discord.ui.View):
 
     async def render(self) -> discord.Embed:
         self.clear_items()
-        if self.section == "settings" and not self.can_manage:
+        available = {
+            "settings": self.can_manage,
+            "library": self.bot.feature("library") and self.bot.library.running,
+        }
+        sections = [name for name in SECTIONS if available.get(name, True)]
+        if self.section not in sections:
             self.section = "player"
-        sections = [name for name in SECTIONS if name != "settings" or self.can_manage]
         options = [
             discord.SelectOption(label=self.t(f"menu.sections.{name}"), value=name, emoji=SECTION_EMOJIS[name],
                                  default=name == self.section)
@@ -195,6 +199,7 @@ class MenuView(discord.ui.View):
             "queue": self._render_queue,
             "filters": self._render_filters,
             "playlists": self._render_playlists,
+            "library": self._render_library,
             "settings": self._render_settings,
         }[self.section]
         embed = await renderer()
@@ -388,7 +393,7 @@ class MenuView(discord.ui.View):
                     if player is None or player.current is None:
                         raise HexError("errors.nothing_playing")
                     limit = int(self.bot.config.playlists.max_tracks)
-                    if not await db.add_tracks(playlist.id, [serialize_track(player.current)], limit=limit):
+                    if not await db.add_tracks(playlist.id, serialize_tracks([player.current]), limit=limit):
                         raise HexError("errors.playlist_full", limit=limit)
                     await self.show(interaction)
                     await self._notify(interaction, "playlist.added", count=1, name=escape(playlist.name))
@@ -425,6 +430,92 @@ class MenuView(discord.ui.View):
             title=self.t("menu.new_playlist"), label=self.t("menu.playlist_name"),
             placeholder=self.t("menu.playlist_name"), max_length=32, on_submit=create,
         ))
+
+    # Biblioteca del servidor (archivos subidos)
+
+    async def _render_library(self) -> discord.Embed:
+        library = self.bot.library
+        entries = await self.bot.db.list_library(self.guild.id)
+        pages = max(1, math.ceil(len(entries) / PAGE_SIZE))
+        self.page = min(max(self.page, 0), pages - 1)
+        start = self.page * PAGE_SIZE
+        page_entries = entries[start:start + PAGE_SIZE]
+
+        def duration(length: int | None) -> str:
+            return format_duration(length) if length else "—"
+
+        lines = [f"`{index}.` **{escape(truncate(entry.title, 60))}** `{duration(entry.length)}`"
+                 for index, entry in enumerate(page_entries, start=start + 1)]
+        prefix = (await self.bot.db.get_guild(self.guild.id)).prefix or str(self.bot.config.bot.prefix)
+        embed = embeds.make_embed(self.bot, title=self.t("library.title", guild=escape(self.guild.name)),
+                                  description="\n".join(lines) if lines else self.t("library.empty", prefix=prefix))
+        count, used = await self.bot.db.library_usage(self.guild.id)
+        limit = f"{library.max_guild_bytes / 1_048_576:.0f} MB" if library.max_guild_bytes else "∞"
+        embed.set_footer(text=f"{self.t('library.usage', count=count, used=f'{used / 1_048_576:.1f}', max=limit)}"
+                              f" • {self.t('menu.upload_hint')}")
+
+        if page_entries:
+            options = [discord.SelectOption(label=truncate(entry.title, 100), value=str(entry.id), emoji="📚",
+                                            description=duration(entry.length)) for entry in page_entries]
+            self._select(self._library_play, row=1, placeholder=self.t("menu.library_play"), options=options)
+            if await self.bot.is_dj(self.member, self.player, strict=True):
+                self._select(self._library_delete, row=2, placeholder=self.t("menu.library_delete"), options=options)
+
+        async def previous_page(interaction: discord.Interaction) -> None:
+            self.page -= 1
+            await self.show(interaction)
+
+        async def next_page(interaction: discord.Interaction) -> None:
+            self.page += 1
+            await self.show(interaction)
+
+        async def play_all(interaction: discord.Interaction) -> None:
+            await self._library_play_all(interaction)
+
+        self._button(previous_page, row=3, emoji="◀️", disabled=self.page <= 0)
+        self._button(next_page, row=3, emoji="▶️", disabled=self.page >= pages - 1)
+        self._button(play_all, row=3, emoji="🔀", label=self.t("menu.library_play_all"), disabled=not entries,
+                     style=discord.ButtonStyle.primary)
+        return embed
+
+    async def _library_play(self, interaction: discord.Interaction, value: str) -> None:
+        await interaction.response.defer()
+        try:
+            entry = await self.bot.db.get_library_track(self.guild.id, int(value))
+            if entry is None:
+                raise HexError("errors.library_not_found", name=value)
+            player = await ensure_player(self.bot, self.member, self.channel)
+            track = await self.bot.library.track_for(entry, self.member.id)
+            result = await add_tracks(self.bot, player, [track])
+        except HexError as exc:
+            return await self._error(interaction, exc)
+        await self.show(interaction)
+        await interaction.followup.send(embed=embeds.enqueue_embed(self.bot, self.lang, result), ephemeral=True)
+
+    async def _library_play_all(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer()
+        try:
+            entries = await self.bot.db.list_library(self.guild.id)
+            random.shuffle(entries)
+            player = await ensure_player(self.bot, self.member, self.channel)
+            tracks = await self.bot.library.tracks_for(entries, self.member.id)
+            if not tracks:
+                raise HexError("errors.library_empty")
+            result = await add_tracks(self.bot, player, tracks)
+        except HexError as exc:
+            return await self._error(interaction, exc)
+        await self.show(interaction)
+        await self._notify(interaction, "library.playing_all", count=len(result.tracks))
+
+    async def _library_delete(self, interaction: discord.Interaction, value: str) -> None:
+        if not await self.bot.is_dj(self.member, self.player, strict=True):
+            return await self._error(interaction, HexError("errors.library_dj_only"))
+        entry = await self.bot.db.get_library_track(self.guild.id, int(value))
+        if entry is not None:
+            await self.bot.library.delete(entry)
+        await self.show(interaction)
+        if entry is not None:
+            await self._notify(interaction, "library.deleted", title=escape(entry.title))
 
     # Ajustes del servidor (Gestionar servidor)
 

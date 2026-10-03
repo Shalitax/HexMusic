@@ -11,6 +11,7 @@ import wavelink
 
 from ..errors import HexError
 from ..player import HexPlayer
+from ..utils.files import is_discord_attachment_url, retitle
 from .panel import edit_panel
 
 if TYPE_CHECKING:
@@ -170,17 +171,27 @@ async def enqueue(
     *,
     source: str | None = None,
     play_next: bool = False,
+    title: str | None = None,
 ) -> EnqueueResult:
-    results = await search_tracks(bot, query, source)
-    if not results:
-        raise HexError("errors.no_results", query=query)
-
-    if isinstance(results, wavelink.Playlist):
-        playlist: wavelink.Playlist | None = results
-        tracks = list(results.tracks)
+    """Busca y encola. ``library:<id>`` reproduce un archivo de la biblioteca del servidor; ``title`` es el
+    título a mostrar cuando el archivo no trae metadatos (adjuntos de Discord)."""
+    playlist: wavelink.Playlist | None = None
+    library_track = None
+    if player.guild is not None:
+        library_track = await bot.library.resolve_query(player.guild.id, query, requester.id)
+    if library_track is not None:
+        tracks = [library_track]
     else:
-        playlist = None
-        tracks = [results[0]]
+        results = await search_tracks(bot, query, source)
+        if not results:
+            raise HexError("errors.no_results", query=query)
+        if isinstance(results, wavelink.Playlist):
+            playlist = results
+            tracks = list(results.tracks)
+        else:
+            tracks = [results[0]]
+        if title and playlist is None:
+            tracks = [retitle(tracks[0], title)]
 
     max_seconds = int(bot.config.player.max_track_duration)
     if max_seconds:
@@ -232,6 +243,18 @@ def rows_to_tracks(rows: list[dict[str, Any]], requester_id: int) -> list[waveli
         track.extras = {"requester_id": requester_id}
         tracks.append(track)
     return tracks
+
+
+def serialize_tracks(tracks: list[wavelink.Playable]) -> list[dict[str, object]]:
+    """Canciones listas para guardar en una playlist.
+
+    Se omiten los archivos adjuntos en Discord: su enlace caduca en ~24 h y dejarían de sonar. Para
+    conservarlos hay que subirlos a la biblioteca (/upload), cuyos enlaces no caducan.
+    """
+    storable = [serialize_track(track) for track in tracks if not is_discord_attachment_url(track.uri)]
+    if tracks and not storable:
+        raise HexError("errors.attachment_not_storable")
+    return storable
 
 
 def serialize_track(track: wavelink.Playable) -> dict[str, object]:

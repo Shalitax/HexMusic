@@ -13,7 +13,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from ..checks import get_player, music_check
-from ..core.playback import add_tracks, ensure_player, rows_to_tracks, search_tracks, serialize_track
+from ..core.playback import add_tracks, ensure_player, rows_to_tracks, search_tracks, serialize_tracks
 from ..database import PLAYLIST_NAME_MAX, PlaylistInfo, clean_playlist_name
 from ..errors import HexError
 from ..ui import embeds
@@ -57,7 +57,7 @@ class Playlists(commands.Cog):
 
     async def _store(self, playlist: PlaylistInfo, tracks: list[wavelink.Playable]) -> int:
         limit = int(self.bot.config.playlists.max_tracks)
-        added = await self.bot.db.add_tracks(playlist.id, [serialize_track(track) for track in tracks], limit=limit)
+        added = await self.bot.db.add_tracks(playlist.id, serialize_tracks(tracks), limit=limit)
         if added == 0:
             raise HexError("errors.playlist_full", limit=limit)
         return added

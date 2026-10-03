@@ -22,8 +22,8 @@ Leyenda de la columna **Acceso**:
 
 | Comando | Alias | Acceso | Descripción |
 |---|---|---|---|
-| `/play <búsqueda> [plataforma]` | `p` | 🟢 | Reproduce una canción, playlist, álbum o enlace. Con autocompletado |
-| `/playnext <búsqueda> [plataforma]` | `pn`, `playtop` | 🟢 | Añade al principio de la cola |
+| `/play <búsqueda> [plataforma] [archivo]` | `p` | 🟢 | Reproduce una canción, playlist, álbum o enlace, o un **archivo de audio adjunto**. El autocompletado sugiere también los archivos de la biblioteca (📚) |
+| `/playnext <búsqueda> [plataforma] [archivo]` | `pn`, `playtop` | 🟢 | Añade al principio de la cola |
 | `/search <búsqueda> [plataforma]` | `find` | 🟢 | Muestra resultados en un menú para elegir |
 | `/menu` | `m`, `panel` | 🟢 | Menú privado para controlarlo todo sin escribir comandos (ver abajo) |
 | `/join` | `connect`, `summon` | 🟢 | Entra en tu canal de voz |
@@ -90,6 +90,26 @@ Las playlists son **de cada usuario** y funcionan en cualquier servidor donde es
 
 ---
 
+## 📚 Biblioteca de archivos
+
+Cada servidor tiene una biblioteca de audios subidos desde Discord (mp3, flac, wav, ogg, opus, m4a, aac, webm…). El bot guarda una copia, así que se pueden reproducir cuando se quiera y guardar en playlists.
+
+| Comando | Alias | Acceso | Descripción |
+|---|---|---|---|
+| `/upload <archivo> [título]` | `subir` | 🎧 | Guarda el archivo en la biblioteca. Sin título se usa el de sus etiquetas o el nombre del archivo |
+| `/library list` | `lib`, `biblioteca` | 🟢 | Lista los archivos y el espacio usado |
+| `/library play <archivo> [next]` | `p` | 🟢 | Reproduce un archivo (con autocompletado) |
+| `/library playall [mezclar]` | `all` | 🟢 | Añade toda la biblioteca a la cola |
+| `/library rename <archivo> <título>` | — | 🎧 | Cambia el título |
+| `/library delete <archivo>` | `del` | 🎧 | Borra el archivo |
+
+🎧 = administradores, *Gestionar servidor* o rol DJ. Con prefijo, adjunta el archivo al mensaje: `hm!upload Mi intro`.
+
+- **`/play` con un archivo adjunto** lo reproduce al momento sin guardarlo. Ese enlace de Discord caduca en ~24 h, así que no se puede añadir a playlists: para conservarlo usa `/upload`.
+- En el **canal de peticiones** basta con soltar el archivo.
+- Límites (`config.yml → library`): 25 MB por archivo, 500 MB y 200 archivos por servidor. Discord limita las subidas a 10 MB sin Nitro.
+- También desde `/menu` → 📚 Biblioteca.
+
 ## ⚙️ Ajustes (🛡️ Gestionar servidor)
 
 | Comando | Alias | Descripción |
@@ -149,6 +169,7 @@ Abre un menú que solo ves tú, con un desplegable para cambiar de sección:
 | 📜 Cola | Ver la cola por páginas, saltar a una canción, quitarla, mezclar o vaciar |
 | 🎛️ Filtros | Elegir un preset, subir o bajar la velocidad y quitar los filtros |
 | 📁 Mis playlists | Elegir una playlist para reproducirla (normal o mezclada), añadir la canción actual, hacerla pública o privada, borrarla o crear una nueva |
+| 📚 Biblioteca | Reproducir un archivo subido o toda la biblioteca mezclada; borrar archivos (DJ o admins) |
 | ⚙️ Ajustes del servidor | Solo con *Gestionar servidor*: idioma, rol DJ, volumen inicial, votación, anuncios y autoplay |
 
 Cada acción comprueba los mismos permisos que su comando (canal de voz, rol DJ…). El menú se desactiva tras 10 minutos sin usarlo; vuelve a abrirlo con `/menu`.

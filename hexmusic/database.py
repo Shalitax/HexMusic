@@ -60,6 +60,20 @@ CREATE TABLE IF NOT EXISTS web_sessions (
     expires_at   INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS library_tracks (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id    INTEGER NOT NULL,
+    title       TEXT    NOT NULL,
+    filename    TEXT    NOT NULL,
+    ext         TEXT    NOT NULL,
+    size        INTEGER NOT NULL,
+    length      INTEGER,
+    uploader_id INTEGER,
+    created_at  INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_library_tracks_guild ON library_tracks (guild_id);
+
 CREATE TABLE IF NOT EXISTS player_sessions (
     guild_id   INTEGER PRIMARY KEY,
     data       TEXT    NOT NULL,
@@ -113,6 +127,21 @@ class PlaylistInfo:
     created_at: int
     track_count: int
     public: bool = False
+
+
+@dataclass(slots=True)
+class LibraryEntry:
+    """Archivo de audio guardado en la biblioteca de un servidor."""
+
+    id: int
+    guild_id: int
+    title: str
+    filename: str
+    ext: str
+    size: int
+    length: int | None
+    uploader_id: int | None
+    created_at: int
 
 
 class Database:
@@ -330,6 +359,68 @@ class Database:
         )
         await self.conn.commit()
         return max(0, cursor.rowcount)
+
+    # ───── Biblioteca de archivos subidos ─────
+
+    async def add_library_track(self, guild_id: int, title: str, filename: str, ext: str, size: int,
+                                uploader_id: int | None) -> LibraryEntry:
+        created_at = int(time.time())
+        cursor = await self.conn.execute(
+            "INSERT INTO library_tracks (guild_id, title, filename, ext, size, uploader_id, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (guild_id, title, filename, ext, size, uploader_id, created_at),
+        )
+        await self.conn.commit()
+        return LibraryEntry(id=int(cursor.lastrowid or 0), guild_id=guild_id, title=title, filename=filename, ext=ext,
+                            size=size, length=None, uploader_id=uploader_id, created_at=created_at)
+
+    @staticmethod
+    def _library_entry(row: aiosqlite.Row) -> LibraryEntry:
+        return LibraryEntry(**{key: row[key] for key in row.keys()})
+
+    async def get_library_track(self, guild_id: int, entry_id: int) -> LibraryEntry | None:
+        async with self.conn.execute(
+            "SELECT * FROM library_tracks WHERE guild_id = ? AND id = ?", (guild_id, entry_id)
+        ) as cursor:
+            row = await cursor.fetchone()
+        return self._library_entry(row) if row else None
+
+    async def list_library(self, guild_id: int) -> list[LibraryEntry]:
+        async with self.conn.execute(
+            "SELECT * FROM library_tracks WHERE guild_id = ? ORDER BY title COLLATE NOCASE, id", (guild_id,)
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [self._library_entry(row) for row in rows]
+
+    async def search_library(self, guild_id: int, text: str, *, limit: int = 25) -> list[LibraryEntry]:
+        pattern = text.replace("!", "!!").replace("%", "!%").replace("_", "!_")
+        async with self.conn.execute(
+            "SELECT * FROM library_tracks WHERE guild_id = ? AND title LIKE ? ESCAPE '!' "
+            "ORDER BY title COLLATE NOCASE LIMIT ?",
+            (guild_id, f"%{pattern}%", limit),
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [self._library_entry(row) for row in rows]
+
+    async def update_library_track(self, entry_id: int, **changes: Any) -> None:
+        allowed = {"title", "length"}
+        if not changes or set(changes) - allowed:
+            raise ValueError(f"Campos no válidos: {', '.join(sorted(set(changes) - allowed))}")
+        assignments = ", ".join(f"{key} = ?" for key in changes)
+        await self.conn.execute(f"UPDATE library_tracks SET {assignments} WHERE id = ?", (*changes.values(), entry_id))
+        await self.conn.commit()
+
+    async def delete_library_track(self, entry_id: int) -> None:
+        await self.conn.execute("DELETE FROM library_tracks WHERE id = ?", (entry_id,))
+        await self.conn.commit()
+
+    async def library_usage(self, guild_id: int) -> tuple[int, int]:
+        """(archivos, bytes) de la biblioteca de un servidor."""
+        async with self.conn.execute(
+            "SELECT COUNT(*), COALESCE(SUM(size), 0) FROM library_tracks WHERE guild_id = ?", (guild_id,)
+        ) as cursor:
+            count, used = await cursor.fetchone()  # type: ignore[misc]
+        return int(count), int(used)
 
     # ───── Estado de los reproductores (cola persistente) ─────
 

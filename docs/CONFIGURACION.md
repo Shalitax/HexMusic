@@ -28,6 +28,8 @@ HexMusic se configura en **tres niveles**:
 | `YOUTUBE_OAUTH_ENABLED` | — | Ver [Fuentes → YouTube](FUENTES.md#youtube) |
 | `YOUTUBE_OAUTH_REFRESH_TOKEN` | — | Opcional: fija el refresh token de la cuenta (tiene prioridad sobre el guardado). Ver [Fuentes → YouTube](FUENTES.md#youtube) |
 | `YOUTUBE_TOKEN_FILE` | `data/youtube-refresh-token.txt` | Dónde guarda el bot el token de YouTube al vincular |
+| `LIBRARY_PORT` / `LIBRARY_HOST` | `2340` / `127.0.0.1` | Servidor interno desde el que Lavalink descarga los archivos de la biblioteca |
+| `LIBRARY_PUBLIC_URL` | — | Dirección con la que Lavalink llega a ese servidor (Docker Compose: `http://bot:2340`) |
 | `HEXMUSIC_CONFIG` | — | Ruta alternativa a `config.yml` |
 | `WEB_ENABLED`, `WEB_PORT`, `WEB_PUBLIC_URL`, `WEB_CLIENT_SECRET` | — | Panel web, ver [Panel web](PANEL_WEB.md) |
 | `HEXMUSIC__SECCION__CLAVE` | — | Sobrescribe cualquier ajuste de `config.yml` ([ver abajo](#sobrescribir-ajustes-con-variables-de-entorno)) |
@@ -118,6 +120,7 @@ Admiten emojis personalizados con el formato `<:nombre:id>` o `<a:nombre:id>` (a
 | `lyrics` | `true` | Comando `/lyrics` |
 | `request_channel` | `true` | Canal de peticiones (`/setup`) |
 | `vote_skip` | `true` | Permitir la votación para saltar |
+| `library` | `true` | Biblioteca de archivos subidos (`/upload`, `/library`) |
 
 ### `vote_skip`
 
@@ -142,6 +145,19 @@ Tienen permisos DJ quienes cumplan **al menos una** condición: administrador o 
 |---|---|---|
 | `max_per_user` | `25` | Playlists por usuario |
 | `max_tracks` | `500` | Canciones por playlist |
+
+### `library`
+
+| Clave | Por defecto | Descripción |
+|---|---|---|
+| `directory` | `data/library` | Carpeta de los archivos (una subcarpeta por servidor) |
+| `host` / `port` | `127.0.0.1` / `2340` | Dónde escucha el servidor de archivos interno. Cada enlace va firmado: no se puede pedir ningún otro archivo |
+| `public_url` | vacío = `http://127.0.0.1:<port>` | Dirección con la que **Lavalink** llega a ese servidor. Si Lavalink está en otra máquina, tiene que poder alcanzarla |
+| `max_file_mb` | `25` | Tamaño máximo por archivo |
+| `max_guild_mb` | `500` | Espacio por servidor (0 = sin límite) |
+| `max_files` | `200` | Archivos por servidor (0 = sin límite) |
+
+Los archivos se reproducen con la fuente `http` de Lavalink (ya activada); no hace falta la fuente `local`.
 
 ### `youtube`
 

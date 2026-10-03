@@ -20,7 +20,7 @@ from ..utils.formatting import format_uptime
 if TYPE_CHECKING:
     from ..bot import HexMusic
 
-CATEGORY_ORDER = ("Music", "Filters", "Playlists", "Settings", "General")
+CATEGORY_ORDER = ("Music", "Filters", "Playlists", "Library", "Settings", "General")
 
 
 class General(commands.Cog):

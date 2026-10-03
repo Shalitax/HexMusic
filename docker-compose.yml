@@ -29,6 +29,9 @@ services:
     env_file: .env
     environment:
       LAVALINK_URI: "http://lavalink:2333"
+      # Biblioteca (/upload): Lavalink descarga los archivos del bot dentro de la red de Docker
+      LIBRARY_HOST: "0.0.0.0"
+      LIBRARY_PUBLIC_URL: "http://bot:2340"
     depends_on:
       - lavalink
     ports:

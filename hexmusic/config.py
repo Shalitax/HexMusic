@@ -38,6 +38,7 @@ DEFAULTS: dict[str, Any] = {
             "hexmusic.cogs.filters",
             "hexmusic.cogs.playlists",
             "hexmusic.cogs.settings",
+            "hexmusic.cogs.library",
         ],
     },
     "logging": {"level": "INFO"},
@@ -115,6 +116,7 @@ DEFAULTS: dict[str, Any] = {
         "lyrics": True,
         "request_channel": True,
         "vote_skip": True,
+        "library": True,
     },
     "vote_skip": {"default_enabled": False, "ratio": 0.5},
     "dj": {
@@ -136,6 +138,15 @@ DEFAULTS: dict[str, Any] = {
         ]
     },
     "playlists": {"max_per_user": 25, "max_tracks": 500},
+    "library": {
+        "directory": "${LIBRARY_DIR:-data/library}",
+        "host": "${LIBRARY_HOST:-127.0.0.1}",
+        "port": "${LIBRARY_PORT:-2340}",
+        "public_url": "${LIBRARY_PUBLIC_URL:-}",
+        "max_file_mb": 25,
+        "max_guild_mb": 500,
+        "max_files": 200,
+    },
     "youtube": {
         "oauth": "${YOUTUBE_OAUTH_ENABLED:-false}",
         "refresh_token": "${YOUTUBE_OAUTH_REFRESH_TOKEN:-}",
@@ -307,6 +318,14 @@ def validate(data: dict[str, Any]) -> None:
             errors.append("web.port debe ser un puerto válido (1-65535).")
         if not isinstance(web.get("session_days"), int) or web["session_days"] < 1:
             errors.append("web.session_days debe ser un número entero mayor que 0.")
+
+    library = data["library"]
+    if data["features"].get("library"):
+        if not isinstance(library.get("port"), int) or not 1 <= library["port"] <= 65535:
+            errors.append("library.port debe ser un puerto válido (1-65535).")
+        for key in ("max_file_mb", "max_guild_mb", "max_files"):
+            if not isinstance(library.get(key), int) or library[key] < 0:
+                errors.append(f"library.{key} debe ser un número entero positivo.")
 
     if not isinstance(data["filters"].get("presets"), dict):
         errors.append("filters.presets debe ser un diccionario.")

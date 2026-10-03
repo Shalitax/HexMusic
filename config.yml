@@ -28,6 +28,7 @@ bot:
     - hexmusic.cogs.filters
     - hexmusic.cogs.playlists
     - hexmusic.cogs.settings
+    - hexmusic.cogs.library
 
 logging:
   level: "INFO" # DEBUG | INFO | WARNING | ERROR
@@ -114,6 +115,7 @@ features:
   lyrics: true # /lyrics (usa lrclib.net, gratis y sin clave)
   request_channel: true # canal de peticiones con panel fijo (/setup)
   vote_skip: true # votación para saltar
+  library: true # subir archivos de audio (mp3, flac...) a una biblioteca por servidor
 
 vote_skip:
   default_enabled: false # valor inicial por servidor (cambiable con /settings voteskip)
@@ -141,6 +143,19 @@ dj:
 playlists:
   max_per_user: 25
   max_tracks: 500
+
+# Biblioteca de archivos subidos desde Discord. El bot guarda una copia y se la
+# sirve a Lavalink por HTTP (enlaces firmados). Guía: docs/COMANDOS.md → Biblioteca
+library:
+  directory: "${LIBRARY_DIR:-data/library}"
+  host: "${LIBRARY_HOST:-127.0.0.1}" # dónde escucha el servidor de archivos interno
+  port: "${LIBRARY_PORT:-2340}"
+  # Dirección con la que Lavalink llega a ese servidor. Vacío = http://127.0.0.1:<port>
+  # (Lavalink en la misma máquina). Con Docker Compose: http://bot:2340
+  public_url: "${LIBRARY_PUBLIC_URL:-}"
+  max_file_mb: 25 # tamaño máximo por archivo (Discord limita las subidas: 10 MB sin Nitro)
+  max_guild_mb: 500 # espacio total por servidor (0 = sin límite)
+  max_files: 200 # archivos por servidor (0 = sin límite)
 
 # Cuenta de YouTube (solo si YouTube bloquea la IP de tu servidor). El bot muestra el
 # código de vinculación en la consola, guarda el token y se lo entrega a Lavalink.

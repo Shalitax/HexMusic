@@ -17,6 +17,7 @@ from discord.ext import commands
 
 from . import __version__
 from .config import Config
+from .core.library import Library
 from .core.sessions import SessionStore
 from .core.youtube import YouTubeAccount
 from .database import Database
@@ -34,6 +35,8 @@ ACTIVITY_TYPES = {
     "watching": discord.ActivityType.watching,
     "competing": discord.ActivityType.competing,
 }
+
+OPTIONAL_EXTENSIONS = {"hexmusic.cogs.library": "library"}
 
 _ERROR_WRAPPERS = (commands.CommandInvokeError, commands.HybridCommandError, app_commands.CommandInvokeError)
 
@@ -85,6 +88,7 @@ class HexMusic(commands.AutoShardedBot):
         self.colors = Colors(config.branding)
         self.youtube = YouTubeAccount(self)
         self.sessions = SessionStore(self)
+        self.library = Library(self)
         self.http_session: aiohttp.ClientSession | None = None
         self.controls_view: ControlsView | None = None
         self.started_at = time.time()
@@ -105,9 +109,17 @@ class HexMusic(commands.AutoShardedBot):
         self.controls_view = ControlsView(self)
         self.add_view(self.controls_view)
 
-        for extension in self.config.bot.extensions:
-            await self.load_extension(str(extension))
+        extensions = [str(extension) for extension in self.config.bot.extensions]
+        # Módulos añadidos después de la primera versión: las instalaciones con su propia lista en config.yml
+        # también los reciben; se desactivan con su interruptor en "features".
+        for extension, feature in OPTIONAL_EXTENSIONS.items():
+            if extension not in extensions and self.feature(feature):
+                extensions.append(extension)
+        for extension in extensions:
+            await self.load_extension(extension)
             log.info("Módulo cargado: %s", extension)
+
+        await self.library.start()
 
         # En segundo plano: el bot arranca aunque Lavalink tarde en estar listo
         self._nodes_task = asyncio.create_task(self.connect_nodes())
@@ -172,6 +184,7 @@ class HexMusic(commands.AutoShardedBot):
             self._nodes_task.cancel()
         if self.web is not None:
             await self.web.stop()
+        await self.library.stop()
         try:
             await wavelink.Pool.close()
         except Exception:  # noqa: BLE001 - el cierre no debe fallar

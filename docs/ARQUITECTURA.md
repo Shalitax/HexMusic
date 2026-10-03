@@ -39,6 +39,9 @@ flowchart LR
 | `core/panel.py` | Crear o actualizar el panel "reproduciendo ahora" |
 | `core/presets.py` | Presets de filtros y conversión al formato de Lavalink |
 | `core/controls.py` | Acciones del reproductor (pausa, saltar, filtro, saltar a…) con sus permisos, compartidas por el panel y `/menu` |
+| `core/library.py` | Biblioteca de archivos: subida, cuotas, servidor HTTP firmado para Lavalink y `library:<id>` |
+| `cogs/library.py` | `/upload` y `/library` |
+| `utils/files.py` | Formatos de audio, títulos de archivos y enlaces de adjuntos de Discord |
 | `core/sessions.py` | Cola persistente: foto periódica de cada reproductor y restauración al arrancar |
 | `core/youtube.py` | Cuenta de YouTube: flujo de dispositivo de Google, comprobación del token y entrega a Lavalink (`POST /youtube`) |
 | `ui/embeds.py` | Todos los embeds, con el branding de la configuración |
