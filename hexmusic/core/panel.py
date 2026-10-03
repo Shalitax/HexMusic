@@ -34,7 +34,7 @@ async def refresh_panel(bot: HexMusic, guild: discord.Guild, player: HexPlayer |
             embed = build_panel_embed(bot, lang, guild, player, idle=idle)
             try:
                 await channel.get_partial_message(settings.request_message_id).edit(
-                    content=None, embed=embed, view=bot.controls_view
+                    content=None, embed=embed, view=bot.controls_for(lang, None if idle else player)
                 )
                 return
             except discord.NotFound:
@@ -75,7 +75,7 @@ async def refresh_panel(bot: HexMusic, guild: discord.Guild, player: HexPlayer |
 
     try:
         player.panel_message = await player.text_channel.send(
-            embed=embeds.now_playing_embed(bot, lang, player, player.current), view=bot.controls_view
+            embed=embeds.now_playing_embed(bot, lang, player, player.current), view=bot.controls_for(lang, player)
         )
     except discord.HTTPException as exc:
         player.panel_message = None
@@ -92,12 +92,14 @@ async def edit_panel(bot: HexMusic, guild: discord.Guild, player: HexPlayer | No
         channel = guild.get_channel(settings.request_channel_id)
         if isinstance(channel, discord.TextChannel):
             try:
-                await channel.get_partial_message(settings.request_message_id).edit(embed=embed, view=bot.controls_view)
+                await channel.get_partial_message(settings.request_message_id).edit(
+                    embed=embed, view=bot.controls_for(lang, player)
+                )
             except discord.HTTPException:
                 pass
 
     if player is not None and player.panel_message is not None and player.current is not None:
         try:
-            await player.panel_message.edit(embed=embed)
+            await player.panel_message.edit(embed=embed, view=bot.controls_for(lang, player))
         except discord.HTTPException:
             player.panel_message = None

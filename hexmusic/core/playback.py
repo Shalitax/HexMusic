@@ -11,6 +11,7 @@ import wavelink
 
 from ..errors import HexError
 from ..player import HexPlayer
+from .panel import edit_panel
 
 if TYPE_CHECKING:
     from ..bot import HexMusic
@@ -154,6 +155,9 @@ async def add_tracks(
         player.queue.put(tracks)
 
     started = await start_if_idle(player)
+    if not started and player.guild is not None:
+        # El menú "Saltar a…" del panel muestra la cola: se actualiza con las canciones nuevas
+        await edit_panel(bot, player.guild, player)
     return EnqueueResult(tracks=tracks, playlist=playlist, started=started,
                          position=0 if started else position, play_next=play_next)
 

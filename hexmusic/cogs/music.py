@@ -11,11 +11,12 @@ from discord import app_commands
 from discord.ext import commands
 
 from ..checks import get_player, music_check
-from ..core.panel import refresh_panel
+from ..core.panel import edit_panel, refresh_panel
 from ..core.playback import SOURCE_LABELS, enqueue, ensure_player, search_tracks, skip_or_vote
 from ..errors import HexError
 from ..player import HexPlayer
 from ..ui import embeds
+from ..ui.menu import MenuView
 from ..ui.views import Paginator, SearchView
 from ..utils.formatting import escape, format_duration, parse_time, track_link, truncate
 from ..utils.lyrics import fetch_lyrics
@@ -133,6 +134,14 @@ class Music(commands.Cog):
                                   description="\n".join(lines))
         view = SearchView(self.bot, lang, ctx.author.id, tracks)
         view.message = await ctx.send(embed=embed, view=view)
+
+    @commands.hybrid_command(name="menu", aliases=["m", "panel"],
+                             description="Open a menu to control the music, queue, filters and playlists")
+    @commands.guild_only()
+    async def menu(self, ctx: commands.Context) -> None:
+        lang = await self.bot.lang_for(ctx.guild.id)
+        view = MenuView(self.bot, ctx.author, lang, ctx.channel)
+        view.message = await ctx.send(embed=await view.render(), view=view, ephemeral=True)
 
     # ───── Conexión ─────
 
@@ -287,7 +296,8 @@ class Music(commands.Cog):
     async def nowplaying(self, ctx: commands.Context) -> None:
         player = self._player(ctx)
         lang = await self.bot.lang_for(ctx.guild.id)
-        await ctx.send(embed=embeds.now_playing_embed(self.bot, lang, player, player.current), view=self.bot.controls_view)
+        await ctx.send(embed=embeds.now_playing_embed(self.bot, lang, player, player.current),
+                       view=self.bot.controls_for(lang, player))
 
     @commands.hybrid_command(name="queue", aliases=["q", "list"], description="Show the queue")
     @app_commands.describe(page="Page number")
@@ -367,6 +377,7 @@ class Music(commands.Cog):
         if HexPlayer.requester_id(track) != ctx.author.id and not await self.bot.can_use(ctx.author, player, "remove"):
             raise HexError("errors.dj_only")
         player.queue.delete(position - 1)
+        await edit_panel(self.bot, ctx.guild, player)
         await self.bot.respond(ctx, "music.removed", track=track_link(track))
 
     @commands.hybrid_command(name="move", aliases=["mv"], description="Move a song to another position in the queue")
@@ -387,6 +398,7 @@ class Music(commands.Cog):
         track = player.queue[from_position - 1]
         player.queue.delete(from_position - 1)
         player.queue.put_at(to_position - 1, track)
+        await edit_panel(self.bot, ctx.guild, player)
         await self.bot.respond(ctx, "music.moved", track=track_link(track), position=to_position)
 
     @commands.hybrid_command(name="skipto", aliases=["jump"], description="Jump to a position in the queue")
@@ -419,6 +431,7 @@ class Music(commands.Cog):
         if not count:
             raise HexError("errors.queue_empty")
         player.queue.clear()
+        await edit_panel(self.bot, ctx.guild, player)
         await self.bot.respond(ctx, "music.cleared", count=count)
 
     @commands.hybrid_command(name="shuffle", aliases=["mix"], description="Shuffle the queue")
@@ -429,6 +442,7 @@ class Music(commands.Cog):
         if len(player.queue) < 2:
             raise HexError("errors.queue_empty")
         player.queue.shuffle()
+        await edit_panel(self.bot, ctx.guild, player)
         await self.bot.respond(ctx, "music.shuffled", count=len(player.queue))
 
     @commands.hybrid_command(name="loop", aliases=["repeat", "l"], description="Change the loop mode")

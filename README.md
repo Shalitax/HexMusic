@@ -18,7 +18,8 @@ YouTube · YouTube Music · Spotify · Apple Music · Deezer · Tidal · Qobuz �
 |---|---|
 | 🎧 **Audio de máxima calidad** | Lavalink 4 con Opus a calidad 10, remuestreo `HIGH`, búfer anti-cortes y paso directo sin recodificar cuando la fuente ya es Opus. Soporte para fuentes sin pérdida (Deezer FLAC, Qobuz). [Más info](docs/CALIDAD_AUDIO.md) |
 | 🌐 **Multiplataforma** | Enlaces y búsquedas de YouTube, YouTube Music, Spotify, Apple Music, Deezer, Tidal, Qobuz, SoundCloud, Bandcamp, Twitch y streams HTTP. |
-| 🎛️ **Panel con botones** | Anterior, pausa, saltar, parar, cola, repetir, mezclar, volumen y autoplay. Los botones siguen funcionando tras reiniciar el bot. |
+| 🎛️ **Panel con botones** | Anterior, pausa, saltar, parar, cola, repetir, mezclar, volumen y autoplay, más menús para elegir filtro y saltar a una canción de la cola. Siguen funcionando tras reiniciar el bot. |
+| 🧭 **Menú `/menu`** | Un menú privado con secciones (reproductor, cola, filtros, playlists y ajustes) para usar todo el bot sin escribir comandos. |
 | 📨 **Canal de peticiones** | `/setup` crea un canal con panel fijo: los usuarios escriben el nombre de una canción y suena. |
 | 🎚️ **Filtros** | 17 presets (bassboost, nightcore, 8D, vaporwave, karaoke…), ecualizador de 15 bandas, velocidad y tono. Añade los tuyos en `config.yml`. |
 | 📁 **Playlists** | Cada usuario guarda sus playlists y las reproduce en cualquier servidor. Importa playlists o álbumes enteros por enlace y comparte las tuyas: los demás pueden reproducirlas o copiarlas. |

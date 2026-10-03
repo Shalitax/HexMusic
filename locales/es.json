@@ -60,7 +60,8 @@
     "request_channel_create_failed": "No pude crear el canal. Necesito el permiso **Gestionar canales**.",
     "not_your_menu": "Este menú no es tuyo. Usa el comando tú mismo.",
     "public_playlist_not_found": "**{user}** no tiene ninguna playlist pública llamada **{name}**.",
-    "import_not_playlist": "Ese enlace no es una playlist ni un álbum. Para añadir una sola canción usa `/playlist add`."
+    "import_not_playlist": "Ese enlace no es una playlist ni un álbum. Para añadir una sola canción usa `/playlist add`.",
+    "queue_changed": "Esa canción ya no está en la cola. Abre el menú de nuevo para ver la cola actual."
   },
   "nowplaying": {
     "title": "Reproduciendo ahora",
@@ -85,7 +86,11 @@
   },
   "panel": {
     "idle_title": "🎶 {name}",
-    "idle_description": "No está sonando nada.\n\n**Escribe el nombre o enlace de una canción** en este canal, o usa `/play`.\nFunciona con YouTube, Spotify, Tidal, Deezer, Apple Music, SoundCloud y más.\n\nPrefijo de texto: `{prefix}`"
+    "idle_description": "No está sonando nada.\n\n**Escribe el nombre o enlace de una canción** en este canal, o usa `/play`.\nFunciona con YouTube, Spotify, Tidal, Deezer, Apple Music, SoundCloud y más.\n\nPrefijo de texto: `{prefix}`",
+    "no_filter": "Sin filtro",
+    "filter_placeholder": "🎛️ Filtro: {name}",
+    "jump_placeholder": "⏭️ Saltar a una canción de la cola ({count})",
+    "queue_empty_placeholder": "La cola está vacía"
   },
   "music": {
     "added_playlist": "Añadida la playlist **{name}** ({count} canciones).",
@@ -224,6 +229,43 @@
     "unknown": "Comando desconocido: {command}. Escribe 'ayuda' para ver la lista.",
     "error": "Error al ejecutar el comando de consola",
     "saved": "Guardado el estado de {count} reproductor(es)."
+  },
+  "menu": {
+    "title": "Menú de {name}",
+    "choose_section": "Elige una sección",
+    "sections": {
+      "player": "Reproductor",
+      "queue": "Cola",
+      "filters": "Filtros",
+      "playlists": "Mis playlists",
+      "settings": "Ajustes del servidor"
+    },
+    "player_title": "🎵 Reproductor",
+    "nothing_playing": "No está sonando nada. Pulsa **Añadir** para poner una canción (tienes que estar en un canal de voz).",
+    "add": "Añadir",
+    "refresh": "Actualizar",
+    "add_title": "Añadir a la cola",
+    "add_label": "Canción o enlace",
+    "add_placeholder": "Nombre, o enlace de YouTube, Spotify, Deezer…",
+    "jump_placeholder": "⏭️ Saltar a…",
+    "remove_placeholder": "✖️ Quitar de la cola…",
+    "clear": "Vaciar",
+    "filters_description": "Filtro actual: **{filter}** · Velocidad: **×{speed}**\nElige un preset en el menú o ajusta la velocidad con los botones.",
+    "reset_filters": "Quitar filtros",
+    "choose_playlist": "Elige una playlist",
+    "choose_playlist_hint": "Elige una playlist en el menú para reproducirla o gestionarla.",
+    "play": "Reproducir",
+    "shuffle_play": "Mezclar",
+    "add_current": "Añadir la actual",
+    "make_public": "Hacer pública",
+    "make_private": "Hacer privada",
+    "delete": "Borrar",
+    "confirm_delete": "¿Seguro? Pulsa otra vez",
+    "new_playlist": "Nueva playlist",
+    "playlist_name": "Nombre de la playlist",
+    "dj_role_placeholder": "Elige el rol DJ",
+    "clear_dj_role": "Quitar rol DJ",
+    "volume_label": "Volumen inicial (0-{max})"
   },
   "youtube": {
     "link_title": "YOUTUBE: VINCULAR UNA CUENTA DE GOOGLE",
@@ -529,6 +571,7 @@
     "Public or private (empty = switch)": "Pública o privada (vacío = cambiar)",
     "Copy someone's public playlist into yours": "Copia la playlist pública de otra persona en las tuyas",
     "Owner of the playlist": "Dueño de la playlist",
-    "Name for your copy (empty = same name)": "Nombre de tu copia (vacío = el mismo)"
+    "Name for your copy (empty = same name)": "Nombre de tu copia (vacío = el mismo)",
+    "Open a menu to control the music, queue, filters and playlists": "Abre un menú para controlar la música, la cola, los filtros y las playlists"
   }
 }

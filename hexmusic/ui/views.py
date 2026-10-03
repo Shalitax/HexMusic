@@ -11,8 +11,10 @@ import discord
 import wavelink
 from discord.ext import commands
 
-from ..core.panel import build_panel_embed, refresh_panel
-from ..core.playback import add_tracks, ensure_player, skip_or_vote
+from ..core.controls import controllable_player, perform, queue_value
+from ..core.panel import build_panel_embed
+from ..core.playback import add_tracks, ensure_player
+from ..core.presets import get_presets
 from ..errors import HexError
 from ..player import HexPlayer
 from ..utils.formatting import format_duration, truncate
@@ -23,28 +25,57 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("hexmusic.views")
 
-# acción del botón → (comando equivalente para los permisos DJ, fila)
-CONTROL_ACTIONS: dict[str, tuple[str | None, int]] = {
-    "previous": ("previous", 0),
-    "pause": ("pause", 0),
-    "skip": ("skip", 0),
-    "stop": ("stop", 0),
-    "queue": (None, 0),
-    "loop": ("loop", 1),
-    "shuffle": ("shuffle", 1),
-    "volume_down": ("volume", 1),
-    "volume_up": ("volume", 1),
-    "autoplay": ("autoplay", 1),
+# acción del botón → fila
+CONTROL_BUTTONS: dict[str, int] = {
+    "previous": 0,
+    "pause": 0,
+    "skip": 0,
+    "stop": 0,
+    "queue": 0,
+    "loop": 1,
+    "shuffle": 1,
+    "volume_down": 1,
+    "volume_up": 1,
+    "autoplay": 1,
 }
+MAX_OPTIONS = 25  # límite de Discord por menú desplegable
+
+
+def track_option(bot: HexMusic, lang: str, index: int, track: wavelink.Playable) -> discord.SelectOption:
+    """Opción de menú para una canción de la cola."""
+    return discord.SelectOption(
+        label=truncate(f"{index}. {track.title}", 100),
+        description=truncate(f"{track.author} · {embeds.duration_text(bot, lang, track)}", 100),
+        value=queue_value(index, track),
+        emoji=embeds.source_emoji(bot, track.source),
+    )
+
+
+def filter_options(bot: HexMusic, lang: str, current: str | None) -> list[discord.SelectOption]:
+    t = partial(bot.i18n.t, lang)
+    options = [discord.SelectOption(label=t("panel.no_filter"), value="none", emoji="🚫", default=current is None)]
+    for name in sorted(get_presets(bot.config))[: MAX_OPTIONS - 1]:
+        options.append(discord.SelectOption(label=name, value=name, default=name == current))
+    return options
 
 
 class ControlsView(discord.ui.View):
-    """Botones del panel. Es persistente: siguen funcionando tras reiniciar el bot."""
+    """Botones y menús del panel "reproduciendo ahora".
 
-    def __init__(self, bot: HexMusic) -> None:
+    La instancia que se registra al arrancar (sin reproductor) es persistente: recibe las pulsaciones de todos
+    los paneles, también de los enviados antes de reiniciar el bot. Cada panel se envía con una copia ya
+    detenida (``build_controls``) que solo sirve para dibujar sus menús con la cola y el filtro de ese servidor;
+    al estar detenida, discord.py no la guarda y las pulsaciones llegan a la persistente.
+    """
+
+    def __init__(self, bot: HexMusic, *, lang: str | None = None, player: HexPlayer | None = None,
+                 display: bool = False) -> None:
         super().__init__(timeout=None)
         self.bot = bot
-        for action, (_, row) in CONTROL_ACTIONS.items():
+        lang = lang or bot.i18n.default
+        t = partial(bot.i18n.t, lang)
+
+        for action, row in CONTROL_BUTTONS.items():
             if action == "autoplay" and not bot.feature("autoplay"):
                 continue
             button: discord.ui.Button[ControlsView] = discord.ui.Button(
@@ -56,16 +87,51 @@ class ControlsView(discord.ui.View):
             button.callback = self._callback(action)
             self.add_item(button)
 
-    def _callback(self, action: str) -> Callable[[discord.Interaction], Coroutine[Any, Any, None]]:
+        playing = player is not None and player.current is not None
+        current_filter = player.filter_name if player is not None else None
+        filter_select: discord.ui.Select[ControlsView] = discord.ui.Select(
+            custom_id="hexmusic:filter",
+            placeholder=truncate(t("panel.filter_placeholder", name=current_filter or t("common.none")), 150),
+            options=filter_options(bot, lang, current_filter),
+            disabled=display and not playing,
+            row=2,
+        )
+        filter_select.callback = self._callback("filter", select=True)
+        self.add_item(filter_select)
+
+        queue = list(player.queue)[:MAX_OPTIONS] if player is not None else []
+        if queue:
+            options = [track_option(bot, lang, index, track) for index, track in enumerate(queue, start=1)]
+            placeholder = t("panel.jump_placeholder", count=len(player.queue))  # type: ignore[union-attr]
+        else:
+            options = [discord.SelectOption(label="—", value="none")]
+            placeholder = t("panel.queue_empty_placeholder")
+        jump_select: discord.ui.Select[ControlsView] = discord.ui.Select(
+            custom_id="hexmusic:jump",
+            placeholder=truncate(placeholder, 150),
+            options=options,
+            disabled=display and not queue,
+            row=3,
+        )
+        jump_select.callback = self._callback("skipto", select=True)
+        self.add_item(jump_select)
+
+    def _callback(self, action: str, *, select: bool = False) -> Callable[[discord.Interaction], Coroutine[Any, Any, None]]:
         async def callback(interaction: discord.Interaction) -> None:
-            await self.handle(interaction, action)
+            # El valor se lee de la propia interacción: la vista persistente es compartida por todos los paneles
+            values: list[Any] = list((interaction.data or {}).get("values") or []) if select else []
+            value = str(values[0]) if values else None
+            if select and (value is None or (action == "skipto" and value == "none")):
+                await interaction.response.defer()
+                return
+            await self.handle(interaction, action, value)
 
         return callback
 
     async def _deny(self, interaction: discord.Interaction, text: str) -> None:
         await interaction.response.send_message(embed=embeds.error_embed(self.bot, text), ephemeral=True)
 
-    async def handle(self, interaction: discord.Interaction, action: str) -> None:
+    async def handle(self, interaction: discord.Interaction, action: str, value: str | None = None) -> None:
         bot = self.bot
         guild = interaction.guild
         member = interaction.user
@@ -74,66 +140,33 @@ class ControlsView(discord.ui.View):
 
         lang = await bot.lang_for(guild.id)
         t = partial(bot.i18n.t, lang)
-        player = guild.voice_client
-
-        if not isinstance(player, HexPlayer) or not player.connected:
-            return await self._deny(interaction, t("errors.no_player"))
-        if member.voice is None or player.channel is None or member.voice.channel != player.channel:
-            channel = player.channel.mention if player.channel else "—"
-            return await self._deny(interaction, t("errors.not_same_channel", channel=channel))
-
-        command_name = CONTROL_ACTIONS[action][0]
-        if command_name and not await bot.can_use(member, player, command_name):
-            return await self._deny(interaction, t("errors.dj_only"))
-
-        notice: str | None = None
-        idle = False
         try:
+            player = await controllable_player(bot, member, action)
             if action == "queue":
                 pages = embeds.queue_embeds(bot, lang, player)
                 paginator = Paginator(pages, member.id, deny_text=t("errors.not_your_menu"))
                 return await paginator.send_interaction(interaction, ephemeral=True)
+            notice = await perform(bot, player, member, action, value)
+        except HexError as exc:
+            return await self._deny(interaction, t(exc.key, **exc.kwargs))
 
-            if action == "previous":
-                if await player.go_previous() is None:
-                    return await self._deny(interaction, t("errors.no_previous"))
-            elif action == "pause":
-                if player.current is None:
-                    return await self._deny(interaction, t("errors.nothing_playing"))
-                player.paused_by_empty = False
-                await player.pause(not player.paused)
-            elif action == "skip":
-                if player.current is None:
-                    return await self._deny(interaction, t("errors.nothing_playing"))
-                skipped, votes, needed = await skip_or_vote(bot, player, member)
-                if not skipped:
-                    notice = t("music.vote_registered", votes=votes, needed=needed)
-            elif action == "stop":
-                await player.stop_and_clear()
-                idle = True
-                # El panel fijo del canal de peticiones también vuelve a reposo
-                await refresh_panel(bot, guild, player, idle=True)
-            elif action == "loop":
-                player.cycle_loop()
-            elif action == "shuffle":
-                if not player.queue:
-                    return await self._deny(interaction, t("errors.queue_empty"))
-                player.queue.shuffle()
-            elif action in ("volume_down", "volume_up"):
-                step = int(bot.config.player.volume_step) * (1 if action == "volume_up" else -1)
-                await player.set_volume(max(0, min(int(bot.config.player.max_volume), player.volume + step)))
-            elif action == "autoplay":
-                player.autoplay_enabled = not player.autoplay_enabled
-                await bot.db.update_guild(guild.id, autoplay=player.autoplay_enabled)
-                if player.current is not None:
-                    player.sync_autoplay()
-        except wavelink.LavalinkException as exc:
-            return await self._deny(interaction, t("errors.lavalink", error=exc.error))
-
+        idle = action == "stop"
         embed = build_panel_embed(bot, lang, guild, player, idle=idle)
-        await interaction.response.edit_message(embed=embed, view=self)
+        try:
+            await interaction.response.edit_message(embed=embed, view=build_controls(bot, lang, player))
+        except discord.HTTPException:
+            # El panel pudo borrarse justo ahora (p. ej. al saltar, se envía uno nuevo)
+            if not interaction.response.is_done():
+                await interaction.response.defer()
         if notice:
-            await interaction.followup.send(embed=embeds.info_embed(bot, notice), ephemeral=True)
+            await interaction.followup.send(embed=embeds.info_embed(bot, t(notice[0], **notice[1])), ephemeral=True)
+
+
+def build_controls(bot: HexMusic, lang: str, player: HexPlayer | None) -> ControlsView:
+    """Copia del panel con los menús de ese servidor, lista para enviar o editar (ver ``ControlsView``)."""
+    view = ControlsView(bot, lang=lang, player=player, display=True)
+    view.stop()
+    return view
 
 
 class Paginator(discord.ui.View):

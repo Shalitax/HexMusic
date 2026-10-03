@@ -25,6 +25,7 @@ Leyenda de la columna **Acceso**:
 | `/play <búsqueda> [plataforma]` | `p` | 🟢 | Reproduce una canción, playlist, álbum o enlace. Con autocompletado |
 | `/playnext <búsqueda> [plataforma]` | `pn`, `playtop` | 🟢 | Añade al principio de la cola |
 | `/search <búsqueda> [plataforma]` | `find` | 🟢 | Muestra resultados en un menú para elegir |
+| `/menu` | `m`, `panel` | 🟢 | Menú privado para controlarlo todo sin escribir comandos (ver abajo) |
 | `/join` | `connect`, `summon` | 🟢 | Entra en tu canal de voz |
 | `/leave` | `disconnect`, `dc` | 🎧 | Sale del canal, vacía la cola y desactiva el 24/7 |
 | `/pause` · `/resume` | `unpause` | 🟢 | Pausa o reanuda |
@@ -133,5 +134,21 @@ Tras `/setup`:
 |---|---|
 | 1 | ⏮️ Anterior · ⏯️ Pausa/Reanudar · ⏭️ Saltar · ⏹️ Parar · 📜 Ver cola |
 | 2 | 🔁 Repetición · 🔀 Mezclar · 🔉 Bajar volumen · 🔊 Subir volumen · ♾️ Autoplay |
+| 3 | 🎛️ Menú de **filtro**: elige un preset o *Sin filtro* |
+| 4 | ⏭️ Menú **Saltar a…**: las próximas 25 canciones de la cola |
 
-Los botones respetan los mismos permisos que su comando equivalente (DJ, votación…). Los emojis se cambian en `config.yml → emojis`.
+Los botones y menús respetan los mismos permisos que su comando equivalente (DJ, votación…). Los emojis se cambian en `config.yml → emojis`.
+
+## 🧭 Menú `/menu`
+
+Abre un menú que solo ves tú, con un desplegable para cambiar de sección:
+
+| Sección | Qué se puede hacer |
+|---|---|
+| 🎵 Reproductor | Canción actual y todos los controles del panel; **➕ Añadir** abre un formulario para escribir una canción o enlace |
+| 📜 Cola | Ver la cola por páginas, saltar a una canción, quitarla, mezclar o vaciar |
+| 🎛️ Filtros | Elegir un preset, subir o bajar la velocidad y quitar los filtros |
+| 📁 Mis playlists | Elegir una playlist para reproducirla (normal o mezclada), añadir la canción actual, hacerla pública o privada, borrarla o crear una nueva |
+| ⚙️ Ajustes del servidor | Solo con *Gestionar servidor*: idioma, rol DJ, volumen inicial, votación, anuncios y autoplay |
+
+Cada acción comprueba los mismos permisos que su comando (canal de voz, rol DJ…). El menú se desactiva tras 10 minutos sin usarlo; vuelve a abrirlo con `/menu`.

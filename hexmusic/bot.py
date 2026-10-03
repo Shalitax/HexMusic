@@ -24,7 +24,7 @@ from .errors import HexError
 from .i18n import HexTranslator, I18n
 from .player import HexPlayer
 from .ui.embeds import error_embed, info_embed, success_embed
-from .ui.views import ControlsView
+from .ui.views import ControlsView, build_controls
 
 log = logging.getLogger("hexmusic")
 
@@ -189,6 +189,10 @@ class HexMusic(commands.AutoShardedBot):
             settings = await self.db.get_guild(message.guild.id)
             prefix = settings.prefix or prefix
         return commands.when_mentioned_or(prefix)(bot, message)
+
+    def controls_for(self, lang: str, player: HexPlayer | None) -> ControlsView:
+        """Botones y menús del panel para un servidor (ver ``ControlsView``)."""
+        return build_controls(self, lang, player)
 
     def feature(self, name: str) -> bool:
         return bool(self.config.features.get(name, False))

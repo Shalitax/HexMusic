@@ -176,7 +176,8 @@ class Settings(commands.Cog):
                     pass
 
         player = get_player(guild)
-        message = await channel.send(embed=build_panel_embed(self.bot, lang, guild, player), view=self.bot.controls_view)
+        message = await channel.send(embed=build_panel_embed(self.bot, lang, guild, player),
+                                     view=self.bot.controls_for(lang, player))
         await self.bot.db.update_guild(guild.id, request_channel_id=channel.id, request_message_id=message.id)
         await self.bot.respond(ctx, "settings.setup_done", channel=channel.mention)
 

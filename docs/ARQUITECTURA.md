@@ -38,10 +38,12 @@ flowchart LR
 | `core/playback.py` | Búsqueda, conexión, cola, autoplay y votaciones. Lo comparten comandos, botones y canal de peticiones |
 | `core/panel.py` | Crear o actualizar el panel "reproduciendo ahora" |
 | `core/presets.py` | Presets de filtros y conversión al formato de Lavalink |
+| `core/controls.py` | Acciones del reproductor (pausa, saltar, filtro, saltar a…) con sus permisos, compartidas por el panel y `/menu` |
 | `core/sessions.py` | Cola persistente: foto periódica de cada reproductor y restauración al arrancar |
 | `core/youtube.py` | Cuenta de YouTube: flujo de dispositivo de Google, comprobación del token y entrega a Lavalink (`POST /youtube`) |
 | `ui/embeds.py` | Todos los embeds, con el branding de la configuración |
-| `ui/views.py` | `ControlsView` (botones persistentes), `Paginator` y `SearchView` |
+| `ui/views.py` | `ControlsView` (botones y menús persistentes del panel), `Paginator` y `SearchView` |
+| `ui/menu.py` | `MenuView` del comando `/menu`: secciones, formularios y ajustes |
 | `utils/` | Formato de tiempos y barras, búsqueda de letras |
 | `cogs/music.py` | Comandos de reproducción y cola |
 | `cogs/filters.py` | Comandos de filtros |

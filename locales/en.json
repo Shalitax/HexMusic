@@ -60,7 +60,8 @@
     "request_channel_create_failed": "I couldn't create the channel. I need the **Manage Channels** permission.",
     "not_your_menu": "This menu isn't yours. Run the command yourself.",
     "public_playlist_not_found": "**{user}** has no public playlist called **{name}**.",
-    "import_not_playlist": "That link isn't a playlist or an album. To add a single song use `/playlist add`."
+    "import_not_playlist": "That link isn't a playlist or an album. To add a single song use `/playlist add`.",
+    "queue_changed": "That song isn't in the queue anymore. Open the menu again to see the current queue."
   },
   "nowplaying": {
     "title": "Now playing",
@@ -85,7 +86,11 @@
   },
   "panel": {
     "idle_title": "🎶 {name}",
-    "idle_description": "Nothing is playing.\n\n**Type a song name or link** in this channel, or use `/play`.\nWorks with YouTube, Spotify, Tidal, Deezer, Apple Music, SoundCloud and more.\n\nText prefix: `{prefix}`"
+    "idle_description": "Nothing is playing.\n\n**Type a song name or link** in this channel, or use `/play`.\nWorks with YouTube, Spotify, Tidal, Deezer, Apple Music, SoundCloud and more.\n\nText prefix: `{prefix}`",
+    "no_filter": "No filter",
+    "filter_placeholder": "🎛️ Filter: {name}",
+    "jump_placeholder": "⏭️ Jump to a song in the queue ({count})",
+    "queue_empty_placeholder": "The queue is empty"
   },
   "music": {
     "added_playlist": "Added the playlist **{name}** ({count} songs).",
@@ -224,6 +229,43 @@
     "unknown": "Unknown command: {command}. Type 'help' to see the list.",
     "error": "Error while running the console command",
     "saved": "Saved the state of {count} player(s)."
+  },
+  "menu": {
+    "title": "{name} menu",
+    "choose_section": "Pick a section",
+    "sections": {
+      "player": "Player",
+      "queue": "Queue",
+      "filters": "Filters",
+      "playlists": "My playlists",
+      "settings": "Server settings"
+    },
+    "player_title": "🎵 Player",
+    "nothing_playing": "Nothing is playing. Press **Add** to play a song (you have to be in a voice channel).",
+    "add": "Add",
+    "refresh": "Refresh",
+    "add_title": "Add to the queue",
+    "add_label": "Song or link",
+    "add_placeholder": "Name, or a YouTube, Spotify, Deezer… link",
+    "jump_placeholder": "⏭️ Jump to…",
+    "remove_placeholder": "✖️ Remove from the queue…",
+    "clear": "Clear",
+    "filters_description": "Current filter: **{filter}** · Speed: **×{speed}**\nPick a preset in the menu or change the speed with the buttons.",
+    "reset_filters": "Remove filters",
+    "choose_playlist": "Pick a playlist",
+    "choose_playlist_hint": "Pick a playlist in the menu to play or manage it.",
+    "play": "Play",
+    "shuffle_play": "Shuffle",
+    "add_current": "Add current song",
+    "make_public": "Make public",
+    "make_private": "Make private",
+    "delete": "Delete",
+    "confirm_delete": "Sure? Press again",
+    "new_playlist": "New playlist",
+    "playlist_name": "Playlist name",
+    "dj_role_placeholder": "Pick the DJ role",
+    "clear_dj_role": "Remove DJ role",
+    "volume_label": "Default volume (0-{max})"
   },
   "youtube": {
     "link_title": "YOUTUBE: LINK A GOOGLE ACCOUNT",
