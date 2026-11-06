@@ -201,42 +201,71 @@ Por eso se recomienda `docker-compose.dokploy.yml`.
 
 ---
 
-## Alternativa: Nixpacks (solo el bot)
+## Alternativa: Nixpacks (bot) + Lavalink aparte
 
-Nixpacks construye **una sola aplicación**. HexMusic necesita dos procesos (bot Python + Lavalink Java), así que Nixpacks solo cubre el bot.
+Nixpacks construye **una sola aplicación**: el bot. Lavalink es Java y tiene que ir en un segundo servicio. Si ya tienes un Lavalink funcionando, puedes desplegar solo el bot.
 
-### Caso A — Ya tienes un Lavalink funcionando
+> Si vienes del compose, **páralo primero** (`Stop`) para no tener dos bots conectados con el mismo token.
 
-1. Crea una **Application** con Build Type `Nixpacks`.
-2. En **Environment** añade, como mínimo:
+### 1. Lavalink (Application)
+
+1. **Create Service → Application**.
+2. Provider `GitHub`, repo `Shalitax/HexMusic`, rama `main`.
+3. **Build Type**: `Dockerfile`.
+   - **Dockerfile Path**: `./lavalink/Dockerfile`
+   - **Docker Context Path**: `./lavalink`
+4. **Environment**:
+
+   ```env
+   JAVA_TOOL_OPTIONS=-Xmx1G
+   LAVALINK_PASSWORD=la_misma_que_en_el_bot
+   MUSIC_COUNTRY_CODE=CL
+   ```
+
+   Añade también las credenciales de las fuentes que uses (`SPOTIFY_*`, `DEEZER_*`, etc.) y `YOUTUBE_OAUTH_ENABLED=true` si usas cuenta de YouTube.
+
+5. **Advanced → Volumes**: volumen `lavalink-plugins` en `/opt/Lavalink/plugins`.
+6. **Sin dominio** y sin publicar el puerto `2333`: se usa por la red interna.
+7. Anota el **App Name** de la aplicación (General). Ese es el hostname interno que usará el bot.
+
+### 2. Bot (Application)
+
+1. **Create Service → Application**.
+2. Provider `GitHub`, repo `Shalitax/HexMusic`, rama `main`.
+3. **Build Type**: `Nixpacks`.
+4. **Environment**:
 
    ```env
    NIXPACKS_PYTHON_VERSION=3.12
+   NIXPACKS_START_CMD=python -m hexmusic
+
    DISCORD_TOKEN=...
-   LAVALINK_URI=http://IP_O_DOMINIO_DEL_LAVALINK:2333
-   LAVALINK_PASSWORD=...
+   LAVALINK_URI=http://<app-name-lavalink>:2333
+   LAVALINK_PASSWORD=la_misma_que_en_lavalink
+
    WEB_ENABLED=true
    WEB_PORT=8080
    WEB_PUBLIC_URL=https://musica.tudominio.com
    WEB_CLIENT_SECRET=...
+
+   LIBRARY_HOST=0.0.0.0
+   LIBRARY_PUBLIC_URL=http://<app-name-bot>:2340
+   DATABASE_PATH=data/hexmusic.db
    ```
 
-3. En **Advanced → Run Command** pon `python -m hexmusic` (Nixpacks no arranca solo el paquete `hexmusic`).
-4. En **Advanced → Volumes** crea un volumen `hexmusic-data` montado en `/app/data`.
-5. En **Domains** apunta el dominio al puerto `8080`.
-6. No hace falta ningún mount: `config.yml` y `locales/` se copian con el repo en el build.
+   Sustituye `<app-name-lavalink>` y `<app-name-bot>` por los **App Name** exactos que muestra Dokploy. No uses `localhost` ni `127.0.0.1`: dentro del contenedor apuntan al propio bot.
 
-> `/upload` necesita que Lavalink llegue al servidor de archivos del bot en el puerto `2340`. Si Lavalink está en otra máquina, expón ese puerto (o un dominio), define `LIBRARY_HOST=0.0.0.0` y `LIBRARY_PUBLIC_URL` con la dirección alcanzable. Si no usas la biblioteca, puedes desactivarla en `config.yml`.
+5. **Advanced → Volumes**: volumen `hexmusic-data` en `/app/data`.
+6. **Domains**: host `musica.tudominio.com`, puerto `8080`, HTTPS.
+7. **Deploy**.
 
-### Caso B — Lavalink también en Dokploy
+### 3. Red
 
-Crea una segunda **Application** con Build Type `Dockerfile`:
+Ambas Applications deben estar en la misma red (`dokploy-network`; Dokploy las conecta por defecto, revísalo en **Networks**). Sin eso, el bot no resolverá el nombre de Lavalink.
 
-- **Dockerfile Path**: `./lavalink/Dockerfile`
-- **Docker Context Path**: `./lavalink`
-- **Environment**: `JAVA_TOOL_OPTIONS=-Xmx1G`, `LAVALINK_PASSWORD=...` y las credenciales de las fuentes que use `application.yml`.
-- **Advanced → Volumes**: volumen `lavalink-plugins` en `/opt/Lavalink/plugins`.
-- Sin dominio: se accede por la red interna.
-- En el bot: `LAVALINK_URI=http://<app-name-lavalink>:2333` y `LIBRARY_PUBLIC_URL=http://<app-name-bot>:2340`, usando el **App Name** que muestra Dokploy.
+### Notas
 
-Ambas Applications deben estar en la misma red (`dokploy-network`; Dokploy las conecta por defecto, revísalo en **Networks**). Es más trabajo y hay más puntos de fallo que el compose, por eso el compose es la opción recomendada.
+- `config.yml` y `locales/` van dentro del build de Nixpacks: cámbialos en el repo y vuelve a desplegar.
+- `/upload` necesita que Lavalink alcance `LIBRARY_PUBLIC_URL`; por eso se usa el nombre interno del bot y no se publica el puerto `2340`.
+- El bot debe tener `discord.py[voice]` en `requirements.txt` para que se instalen `PyNaCl` y `davey`; sin ellos Discord no permite entrar en voz.
+- Si solo quieres el bot con un Lavalink externo, omite el paso 1 y apunta `LAVALINK_URI` a ese servidor (con su IP o dominio y el puerto `2333`).
