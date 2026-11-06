@@ -2,7 +2,7 @@
 
 Esta guía despliega **HexMusic + Lavalink** en [Dokploy](https://dokploy.com/) usando el servicio **Compose** y el archivo [`docker-compose.dokploy.yml`](../docker-compose.dokploy.yml).
 
-> Para ejecutarlo en tu PC sigue la [instalación con Docker](INSTALACION.md#4-opción-a--docker-recomendada). El compose de Dokploy es distinto porque no publica puertos en el host y usa un File Mount para la configuración de Lavalink.
+> Para ejecutarlo en tu PC sigue la [instalación con Docker](INSTALACION.md#4-opción-a--docker-recomendada). El compose de Dokploy es distinto porque no publica puertos en el host y construye una imagen de Lavalink con su configuración incluida.
 
 ---
 
@@ -41,26 +41,18 @@ musica.tudominio.com  →  A  →  IP_DE_TU_SERVIDOR
 
 ---
 
-## 3. Crear el File Mount de Lavalink (obligatorio)
+## 3. Configuración de Lavalink (sin File Mount)
 
-Dokploy borra y vuelve a clonar el repositorio en cada despliegue, así que no se debe montar `lavalink/application.yml` directamente desde el repo. En su lugar se usa un **File Mount**:
+El compose de Dokploy construye una imagen derivada de Lavalink con [`lavalink/Dockerfile`](../lavalink/Dockerfile), que copia la configuración dentro de la imagen:
 
-1. Abre la pestaña **Advanced** → **Mounts**.
-2. Pulsa **Add Mount**.
-3. Rellena:
-   - **Type**: `File`
-   - **File Path**: `application.yml`
-   - **Content**: pega **todo** el contenido de [`lavalink/application.yml`](../lavalink/application.yml)
-4. Guarda.
-
-Dokploy lo crea en `<app>/files/application.yml`, que es justo lo que monta el compose:
-
-```yaml
-volumes:
-  - ../files/application.yml:/opt/Lavalink/application.yml:ro
+```dockerfile
+FROM ghcr.io/lavalink-devs/lavalink:4.2.2-alpine
+COPY application.yml /opt/Lavalink/application.yml
 ```
 
-> Si más adelante cambias `lavalink/application.yml` en el repo, actualiza también el contenido del File Mount y vuelve a desplegar.
+No hay que crear ningún File Mount: Dokploy clona el repo, construye esta imagen y `application.yml` viaja dentro. Si lo cambias, haz commit/push y vuelve a desplegar.
+
+> Alternativa: si prefieres no construir nada, usa la imagen oficial `ghcr.io/lavalink-devs/lavalink:4.2.2-alpine` y crea un **File Mount** en `Advanced → Mounts` con `application.yml` en `/opt/Lavalink/application.yml`. Ese es el único caso en el que el mount sí es necesario.
 
 ---
 
@@ -174,7 +166,7 @@ Luego, en Discord, entra en un canal de voz y usa `/play never gonna give you up
 ## 9. Actualizar
 
 - **Código, `config.yml`, `locales/` o dependencias**: haz commit y push; con **Auto Deploy** activado (pestaña General) Dokploy vuelve a construir la imagen. El bot incluye esos archivos dentro de la imagen, no se montan desde el repo.
-- **`lavalink/application.yml`**: actualízalo en el repo **y** en el File Mount (`Advanced → Mounts`), y vuelve a desplegar.
+- **`lavalink/application.yml`**: actualízalo en el repo y vuelve a desplegar; se reconstruye la imagen de Lavalink.
 - **Solo variables de entorno**: cambia lo necesario en **Environment** y pulsa **Deploy**.
 
 ---
@@ -183,7 +175,7 @@ Luego, en Discord, entra en un canal de voz y usa `/play never gonna give you up
 
 | Síntoma | Causa / solución |
 |---|---|
-| Lavalink no arranca: `application.yml` es un directorio | Falta el File Mount del paso 3. Créalo y vuelve a desplegar. |
+| Lavalink arranca sin plugins o con la configuración por defecto | Revisa que el build use `lavalink/Dockerfile` y que `application.yml` esté en esa carpeta; luego vuelve a desplegar. |
 | Lavalink no descarga plugins | El volumen `lavalink-plugins` no tiene permisos. Fuerza permisos una vez:<br>`docker run --rm -v <proyecto>_lavalink-plugins:/plugins alpine chown -R 322:322 /plugins` |
 | El panel da 502/504 | Revisa que el dominio apunte al servicio `bot`, puerto `8080`, y que `WEB_ENABLED=true`. |
 | `Invalid OAuth2 redirect_uri` | `WEB_PUBLIC_URL` y el Redirect de Discord deben coincidir exactamente (protocolo, dominio y `/auth/callback`). |
@@ -199,6 +191,48 @@ Si prefieres desplegar [`docker-compose.yml`](../docker-compose.yml) tal cual:
 
 - Publica el puerto `8080` en el host, así que no uses dominio de Dokploy o cambia el mapeo a `127.0.0.1:8080:8080`.
 - Vuelve a poner los mounts `./config.yml`, `./locales` y `./lavalink/application.yml`; en cada redespliegue Dokploy puede dejar esos mounts vacíos por el re-clonado del repo.
-- Añade `../` o elimina `container_name` para que Dokploy muestre bien logs y métricas.
+- Elimina `container_name` y añade el servicio `bot` a `dokploy-network` para que Dokploy gestione bien logs, métricas y dominios.
 
 Por eso se recomienda `docker-compose.dokploy.yml`.
+
+---
+
+## Alternativa: Nixpacks (solo el bot)
+
+Nixpacks construye **una sola aplicación**. HexMusic necesita dos procesos (bot Python + Lavalink Java), así que Nixpacks solo cubre el bot.
+
+### Caso A — Ya tienes un Lavalink funcionando
+
+1. Crea una **Application** con Build Type `Nixpacks`.
+2. En **Environment** añade, como mínimo:
+
+   ```env
+   NIXPACKS_PYTHON_VERSION=3.12
+   DISCORD_TOKEN=...
+   LAVALINK_URI=http://IP_O_DOMINIO_DEL_LAVALINK:2333
+   LAVALINK_PASSWORD=...
+   WEB_ENABLED=true
+   WEB_PORT=8080
+   WEB_PUBLIC_URL=https://musica.tudominio.com
+   WEB_CLIENT_SECRET=...
+   ```
+
+3. En **Advanced → Run Command** pon `python -m hexmusic` (Nixpacks no arranca solo el paquete `hexmusic`).
+4. En **Advanced → Volumes** crea un volumen `hexmusic-data` montado en `/app/data`.
+5. En **Domains** apunta el dominio al puerto `8080`.
+6. No hace falta ningún mount: `config.yml` y `locales/` se copian con el repo en el build.
+
+> `/upload` necesita que Lavalink llegue al servidor de archivos del bot en el puerto `2340`. Si Lavalink está en otra máquina, expón ese puerto (o un dominio), define `LIBRARY_HOST=0.0.0.0` y `LIBRARY_PUBLIC_URL` con la dirección alcanzable. Si no usas la biblioteca, puedes desactivarla en `config.yml`.
+
+### Caso B — Lavalink también en Dokploy
+
+Crea una segunda **Application** con Build Type `Dockerfile`:
+
+- **Dockerfile Path**: `./lavalink/Dockerfile`
+- **Docker Context Path**: `./lavalink`
+- **Environment**: `JAVA_TOOL_OPTIONS=-Xmx1G`, `LAVALINK_PASSWORD=...` y las credenciales de las fuentes que use `application.yml`.
+- **Advanced → Volumes**: volumen `lavalink-plugins` en `/opt/Lavalink/plugins`.
+- Sin dominio: se accede por la red interna.
+- En el bot: `LAVALINK_URI=http://<app-name-lavalink>:2333` y `LIBRARY_PUBLIC_URL=http://<app-name-bot>:2340`, usando el **App Name** que muestra Dokploy.
+
+Ambas Applications deben estar en la misma red (`dokploy-network`; Dokploy las conecta por defecto, revísalo en **Networks**). Es más trabajo y hay más puntos de fallo que el compose, por eso el compose es la opción recomendada.
