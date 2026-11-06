@@ -1,0 +1,66 @@
+# ╔══════════════════════════════════════════════════════════════╗
+# ║           HexMusic — Docker Compose para Dokploy             ║
+# ╚══════════════════════════════════════════════════════════════╝
+# Guía completa: docs/DOKPLOY.md
+#
+# Diferencias con docker-compose.yml (uso local):
+#  • No publica puertos en el host: el panel se expone con un dominio
+#    de Dokploy (Traefik → servicio "bot", puerto 8080).
+#  • No usa container_name (Dokploy lo desaconseja: rompe logs y métricas).
+#  • config.yml y locales/ ya están dentro de la imagen del bot (Dockerfile).
+#  • lavalink/application.yml se monta desde ../files (File Mount de Dokploy)
+#    porque Dokploy borra y vuelve a clonar el repo en cada despliegue.
+#  • lavalink/plugins usa un volumen con nombre para conservar los permisos
+#    del usuario 322 con el que corre Lavalink.
+#
+# Antes de desplegar:
+#  1. Advanced → Mounts: crea un File Mount llamado "application.yml" con el
+#     contenido de lavalink/application.yml.
+#  2. Environment: pega las variables del .env (WEB_ENABLED=true).
+#  3. Domains: servicio "bot", puerto 8080, HTTPS activado.
+
+services:
+  lavalink:
+    image: ghcr.io/lavalink-devs/lavalink:4.2.2-alpine
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx${LAVALINK_MEMORY:-1G}"
+    volumes:
+      - ../files/application.yml:/opt/Lavalink/application.yml:ro
+      - lavalink-plugins:/opt/Lavalink/plugins
+    expose:
+      - "2333"
+    networks:
+      - hexmusic
+
+  bot:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      LAVALINK_URI: "http://lavalink:2333"
+      # Biblioteca (/upload): Lavalink descarga los archivos del bot dentro de la red de Docker
+      LIBRARY_HOST: "0.0.0.0"
+      LIBRARY_PUBLIC_URL: "http://bot:2340"
+    depends_on:
+      - lavalink
+    expose:
+      # Mantén WEB_PORT=8080 en las variables de entorno y usa este mismo
+      # puerto al crear el dominio en Dokploy.
+      - "8080"
+    volumes:
+      - hexmusic-data:/app/data
+    networks:
+      - hexmusic
+      # Permite que Traefik (Dokploy) llegue al panel web.
+      - dokploy-network
+
+networks:
+  hexmusic:
+  dokploy-network:
+    external: true
+
+volumes:
+  hexmusic-data:
+  lavalink-plugins:
