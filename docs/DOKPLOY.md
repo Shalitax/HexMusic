@@ -52,6 +52,8 @@ COPY application.yml /opt/Lavalink/application.yml
 
 No hay que crear ningún File Mount: Dokploy clona el repo, construye esta imagen y `application.yml` viaja dentro. Si lo cambias, haz commit/push y vuelve a desplegar.
 
+El compose también incluye un servicio `lavalink-init` que ajusta los permisos del volumen `lavalink-plugins` antes de arrancar Lavalink (corre como UID 322).
+
 > Alternativa: si prefieres no construir nada, usa la imagen oficial `ghcr.io/lavalink-devs/lavalink:4.2.2-alpine` y crea un **File Mount** en `Advanced → Mounts` con `application.yml` en `/opt/Lavalink/application.yml`. Ese es el único caso en el que el mount sí es necesario.
 
 ---
@@ -176,9 +178,11 @@ Luego, en Discord, entra en un canal de voz y usa `/play never gonna give you up
 | Síntoma | Causa / solución |
 |---|---|
 | Lavalink arranca sin plugins o con la configuración por defecto | Revisa que el build use `lavalink/Dockerfile` y que `application.yml` esté en esa carpeta; luego vuelve a desplegar. |
-| Lavalink no descarga plugins | El volumen `lavalink-plugins` no tiene permisos. Fuerza permisos una vez:<br>`docker run --rm -v <proyecto>_lavalink-plugins:/plugins alpine chown -R 322:322 /plugins` |
+| El panel dice `El servidor de audio (Lavalink) no está disponible` | El bot no tiene ningún nodo conectado. En los logs de `lavalink` debe aparecer `Lavalink is ready to accept connections.`; en los del `bot`, `Nodo Lavalink 'main' listo`. Si Lavalink reinicia, mira el error justo antes (plugins, permisos o memoria). |
+| Lavalink no arranca o no descarga plugins | El volumen `lavalink-plugins` debe ser escribible por UID 322. El compose incluye `lavalink-init` para ajustarlo en cada despliegue. Si el volumen se creó antes con permisos de root, pára el servicio, bórralo con `docker volume rm <proyecto>_lavalink-plugins` y vuelve a desplegar (los plugins se descargan otra vez). |
 | El panel da 502/504 | Revisa que el dominio apunte al servicio `bot`, puerto `8080`, y que `WEB_ENABLED=true`. |
-| `Invalid OAuth2 redirect_uri` | `WEB_PUBLIC_URL` y el Redirect de Discord deben coincidir exactamente (protocolo, dominio y `/auth/callback`). |
+| `Invalid OAuth2 redirect_uri` / `redirect_uri de OAuth2 no válido` | Discord no tiene registrada la URL exacta. Mira en los logs del bot al arrancar `Panel web disponible en https://...`; el redirect que hay que registrar es esa URL + `/auth/callback`. Añádelo en Discord → OAuth2 → Redirects y guarda. Debe coincidir en `https`, dominio, `www`, puerto y sin barra final. Si cambias `WEB_PUBLIC_URL`, reinicia/redeploya el bot. |
+| `Discord rechazó la configuración del panel (Client Secret o Redirect)` | El redirect ya funciona, pero falla el intercambio de token. En los logs busca `Discord API POST /oauth2/token → ...`: `401 invalid_client` = `WEB_CLIENT_SECRET` incorrecto, de otra aplicación o sin redesplegar; `400 invalid_grant` = código/redirect caducado o distinto, vuelve a iniciar sesión desde el panel. |
 | El bot no conecta con Lavalink | Revisa que `LAVALINK_PASSWORD` sea la misma para ambos servicios y que no hayas cambiado `LAVALINK_URI`. |
 | Sin memoria / reinicios | Sube `LAVALINK_MEMORY` solo si el servidor tiene RAM libre; con 2 GB deja `1G`. |
 | El panel funciona por HTTP pero no por HTTPS | `WEB_PUBLIC_URL` debe empezar por `https://`; así las cookies se marcan como seguras y Traefik reenvía el protocolo correcto. |

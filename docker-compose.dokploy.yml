@@ -12,13 +12,22 @@
 #    (lavalink/Dockerfile), así no hacen falta File Mounts ni bind mounts al
 #    repositorio, que Dokploy borra y vuelve a clonar en cada despliegue.
 #  • lavalink/plugins usa un volumen con nombre para conservar los permisos
-#    del usuario 322 con el que corre Lavalink.
+#    del usuario 322 con el que corre Lavalink. lavalink-init se encarga de
+#    crearlo/escribirlo antes de arrancar Lavalink.
 #
 # Antes de desplegar:
 #  1. Environment: pega las variables del .env (WEB_ENABLED=true).
 #  2. Domains: servicio "bot", puerto 8080, HTTPS activado.
 
 services:
+  lavalink-init:
+    image: alpine:3.20
+    restart: "no"
+    command: ["sh", "-c", "mkdir -p /plugins && chown -R 322:322 /plugins"]
+    volumes:
+      - lavalink-plugins:/plugins
+    network_mode: "none"
+
   lavalink:
     build:
       context: ./lavalink
@@ -29,6 +38,9 @@ services:
       JAVA_TOOL_OPTIONS: "-Xmx${LAVALINK_MEMORY:-1G}"
     volumes:
       - lavalink-plugins:/opt/Lavalink/plugins
+    depends_on:
+      lavalink-init:
+        condition: service_completed_successfully
     expose:
       - "2333"
     networks:
