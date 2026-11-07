@@ -29,6 +29,7 @@ class Lyrics:
     artist: str
     text: str
     instrumental: bool = False
+    synced: str = ""  # formato LRC ("[mm:ss.xx] verso"), si LRCLIB lo tiene
 
 
 def clean_metadata(title: str, artist: str, *, split_artist: bool) -> tuple[str, str]:
@@ -87,4 +88,5 @@ async def fetch_lyrics(
         artist=str(best.get("artistName") or artist or ""),
         text=str(best.get("plainLyrics") or "").strip(),
         instrumental=bool(best.get("instrumental")),
+        synced=str(best.get("syncedLyrics") or "").strip(),
     )

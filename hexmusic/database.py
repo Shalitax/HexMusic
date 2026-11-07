@@ -79,11 +79,30 @@ CREATE TABLE IF NOT EXISTS player_sessions (
     data       TEXT    NOT NULL,
     updated_at INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS play_history (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id     INTEGER NOT NULL,
+    title        TEXT    NOT NULL,
+    author       TEXT,
+    uri          TEXT,
+    source       TEXT,
+    artwork      TEXT,
+    length       INTEGER,
+    is_stream    INTEGER NOT NULL DEFAULT 0,
+    requester_id INTEGER,
+    autoplay     INTEGER NOT NULL DEFAULT 0,
+    played_at    INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_play_history_guild ON play_history (guild_id, played_at);
+CREATE INDEX IF NOT EXISTS idx_play_history_time ON play_history (played_at);
 """
 
 # Columnas añadidas después de la primera versión: (tabla, columna, definición)
 MIGRATIONS = [
     ("playlists", "public", "INTEGER NOT NULL DEFAULT 0"),
+    ("guild_settings", "dj_commands", "TEXT"),
 ]
 
 
@@ -103,9 +122,12 @@ class GuildSettings:
     stay_channel_id: int | None = None
     request_channel_id: int | None = None
     request_message_id: int | None = None
+    # Comandos que requieren DJ en este servidor. None = la lista de config.yml (dj.commands)
+    dj_commands: list[str] | None = None
 
 
 _BOOL_FIELDS = {"vote_skip", "announce", "autoplay", "stay_247"}
+_JSON_FIELDS = {"dj_commands"}
 _COLUMNS = [f.name for f in fields(GuildSettings)]
 
 PLAYLIST_NAME_MAX = 32
@@ -183,11 +205,24 @@ class Database:
 
     @staticmethod
     def _row_to_settings(row: aiosqlite.Row) -> GuildSettings:
-        values = {key: row[key] for key in row.keys()}
+        values = {key: row[key] for key in row.keys() if key in _COLUMNS}
         for key in _BOOL_FIELDS:
             if values.get(key) is not None:
                 values[key] = bool(values[key])
+        for key in _JSON_FIELDS:
+            raw = values.get(key)
+            if raw is not None:
+                try:
+                    values[key] = json.loads(raw)
+                except (TypeError, ValueError):
+                    values[key] = None
         return GuildSettings(**values)
+
+    @staticmethod
+    def _column_value(column: str, value: Any) -> Any:
+        if column in _JSON_FIELDS:
+            return None if value is None else json.dumps(value)
+        return int(value) if isinstance(value, bool) else value
 
     async def get_guild(self, guild_id: int) -> GuildSettings:
         cached = self._guilds.get(guild_id)
@@ -208,7 +243,7 @@ class Database:
         for key, value in changes.items():
             setattr(settings, key, value)
 
-        values = [int(v) if isinstance(v, bool) else v for v in (getattr(settings, c) for c in _COLUMNS)]
+        values = [self._column_value(column, getattr(settings, column)) for column in _COLUMNS]
         placeholders = ", ".join("?" for _ in _COLUMNS)
         updates = ", ".join(f"{column} = excluded.{column}" for column in _COLUMNS[1:])
         await self.conn.execute(
@@ -218,6 +253,18 @@ class Database:
         )
         await self.conn.commit()
         return settings
+
+    async def reset_guild(self, guild_id: int) -> GuildSettings:
+        """Vuelve a los valores por defecto conservando el canal de peticiones y el 24/7 en curso."""
+        current = await self.get_guild(guild_id)
+        keep = {
+            "stay_247": current.stay_247, "stay_channel_id": current.stay_channel_id,
+            "request_channel_id": current.request_channel_id, "request_message_id": current.request_message_id,
+        }
+        await self.conn.execute("DELETE FROM guild_settings WHERE guild_id = ?", (guild_id,))
+        await self.conn.commit()
+        self._guilds.pop(guild_id, None)
+        return await self.update_guild(guild_id, **keep)
 
     async def guilds_with_247(self) -> list[GuildSettings]:
         async with self.conn.execute(
@@ -444,6 +491,83 @@ class Database:
             except (TypeError, ValueError):
                 continue
         return result
+
+    # ───── Historial de reproducción ─────
+
+    async def add_history(self, guild_id: int, *, title: str, author: str | None, uri: str | None,
+                          source: str | None, artwork: str | None, length: int | None, is_stream: bool,
+                          requester_id: int | None, autoplay: bool) -> None:
+        await self.conn.execute(
+            "INSERT INTO play_history (guild_id, title, author, uri, source, artwork, length, is_stream, requester_id, "
+            "autoplay, played_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (guild_id, title[:300], (author or "")[:200] or None, uri, source, artwork, length, int(is_stream),
+             requester_id, int(autoplay), int(time.time())),
+        )
+        await self.conn.commit()
+
+    async def list_history(self, guild_id: int, *, limit: int = 50, before_id: int | None = None) -> list[dict[str, Any]]:
+        query = "SELECT * FROM play_history WHERE guild_id = ? "
+        params: list[Any] = [guild_id]
+        if before_id:
+            query += "AND id < ? "
+            params.append(before_id)
+        async with self.conn.execute(query + "ORDER BY id DESC LIMIT ?", (*params, limit)) as cursor:
+            rows = await cursor.fetchall()
+        return [{key: row[key] for key in row.keys()} for row in rows]
+
+    async def history_summary(self, guild_id: int | None, *, since: int, tz_offset: int = 0,
+                              top: int = 10) -> dict[str, Any]:
+        """Totales, canciones y usuarios más escuchados y reproducciones por día desde ``since``.
+
+        ``guild_id=None`` resume todos los servidores (estadísticas globales). ``tz_offset`` en segundos
+        agrupa los días en la hora local de quien lo consulta.
+        """
+        where = "played_at >= ?"
+        params: list[Any] = [since]
+        if guild_id is not None:
+            where += " AND guild_id = ?"
+            params.append(guild_id)
+
+        async with self.conn.execute(
+            f"SELECT COUNT(*) AS plays, COALESCE(SUM(CASE WHEN is_stream = 0 THEN length ELSE 0 END), 0) AS listened, "
+            f"COUNT(DISTINCT COALESCE(uri, title)) AS tracks, COUNT(DISTINCT requester_id) AS listeners, "
+            f"COUNT(DISTINCT guild_id) AS guilds FROM play_history WHERE {where}", params,
+        ) as cursor:
+            totals = await cursor.fetchone()
+
+        async with self.conn.execute(
+            f"SELECT title, author, uri, artwork, source, COUNT(*) AS plays, MAX(played_at) AS last_played "
+            f"FROM play_history WHERE {where} AND autoplay = 0 GROUP BY COALESCE(uri, title) "
+            f"ORDER BY plays DESC, last_played DESC LIMIT ?", (*params, top),
+        ) as cursor:
+            top_tracks = [{key: row[key] for key in row.keys()} for row in await cursor.fetchall()]
+
+        async with self.conn.execute(
+            f"SELECT requester_id, COUNT(*) AS plays FROM play_history WHERE {where} AND requester_id IS NOT NULL "
+            f"AND autoplay = 0 GROUP BY requester_id ORDER BY plays DESC LIMIT ?", (*params, top),
+        ) as cursor:
+            top_users = [{"requester_id": row["requester_id"], "plays": row["plays"]} for row in await cursor.fetchall()]
+
+        async with self.conn.execute(
+            f"SELECT CAST((played_at + ?) / 86400 AS INTEGER) AS day, COUNT(*) AS plays FROM play_history "
+            f"WHERE {where} GROUP BY day ORDER BY day", (tz_offset, *params),
+        ) as cursor:
+            daily = [{"day": row["day"], "plays": row["plays"]} for row in await cursor.fetchall()]
+
+        return {
+            "plays": totals["plays"], "listened_ms": totals["listened"], "unique_tracks": totals["tracks"],
+            "listeners": totals["listeners"], "guilds": totals["guilds"],
+            "top_tracks": top_tracks, "top_users": top_users, "daily": daily,
+        }
+
+    async def purge_history(self, older_than: int) -> int:
+        cursor = await self.conn.execute("DELETE FROM play_history WHERE played_at < ?", (older_than,))
+        await self.conn.commit()
+        return max(0, cursor.rowcount)
+
+    async def clear_history(self, guild_id: int) -> None:
+        await self.conn.execute("DELETE FROM play_history WHERE guild_id = ?", (guild_id,))
+        await self.conn.commit()
 
     # ───── Sesiones del panel web ─────
 

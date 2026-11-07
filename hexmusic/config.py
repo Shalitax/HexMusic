@@ -153,6 +153,7 @@ DEFAULTS: dict[str, Any] = {
         "token_file": "${YOUTUBE_TOKEN_FILE:-data/youtube-refresh-token.txt}",
     },
     "request_channel": {"channel_name": "hexmusic", "delete_after": 8},
+    "history": {"enabled": True, "retention_days": 90},
     "filters": {"presets": {}},
     "web": {
         "enabled": "${WEB_ENABLED:-false}",

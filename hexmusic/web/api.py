@@ -15,10 +15,12 @@ from aiohttp import web
 
 from .. import __version__
 from ..checks import get_player
+from ..core.overrides import DJ_COMMANDS
 from ..core.panel import edit_panel, refresh_panel
 from ..core.playback import (SOURCE_LABELS, add_tracks, connect_player, enqueue, rows_to_tracks, search_tracks,
                              serialize_tracks)
 from ..core.presets import build_filters, get_presets
+from ..core.request_channel import remove_request_channel, setup_request_channel
 from ..database import clean_playlist_name
 from ..errors import HexError
 from ..player import HexPlayer
@@ -34,7 +36,7 @@ LOOP_NAMES = {
     wavelink.QueueMode.loop_all: "queue",
 }
 LOOP_VALUES = {name: mode for mode, name in LOOP_NAMES.items()}
-FEATURES = ("autoplay", "stay_247", "lyrics", "request_channel", "vote_skip")
+FEATURES = ("autoplay", "stay_247", "lyrics", "request_channel", "vote_skip", "library")
 
 
 class ApiError(Exception):
@@ -61,7 +63,9 @@ def track_json(track: wavelink.Playable, guild: discord.Guild | None) -> dict[st
         "is_stream": track.is_stream,
         "source": track.source,
         "recommended": track.recommended,
-        "requester": {"id": str(requester_id), "name": member.display_name if member else None} if requester_id else None,
+        "seekable": bool(track.is_seekable and not track.is_stream),
+        "requester": {"id": str(requester_id), "name": member.display_name if member else None,
+                      "avatar": member.display_avatar.url if member else None} if requester_id else None,
     }
 
 
@@ -69,6 +73,7 @@ class Api:
     def __init__(self, bot: HexMusic, auth: Auth) -> None:
         self.bot = bot
         self.auth = auth
+        self.media: Any = None  # MediaApi (resultados de búsqueda para las playlists)
 
     def register(self, app: web.Application) -> None:
         router = app.router
@@ -78,6 +83,9 @@ class Api:
         router.add_get("/api/stats", self.stats)
         router.add_get("/api/guilds/{guild_id}", self.guild)
         router.add_patch("/api/guilds/{guild_id}/settings", self.update_settings)
+        router.add_post("/api/guilds/{guild_id}/settings/reset", self.reset_settings)
+        router.add_post("/api/guilds/{guild_id}/request-channel", self.set_request_channel)
+        router.add_delete("/api/guilds/{guild_id}/request-channel", self.delete_request_channel)
         router.add_get("/api/guilds/{guild_id}/player", self.player)
         router.add_post("/api/guilds/{guild_id}/player", self.player_action)
         router.add_get("/api/playlists", self.playlists)
@@ -129,6 +137,20 @@ class Api:
             return int(str(value))
         except (TypeError, ValueError):
             raise _invalid() from None
+
+    # Nombres públicos para los otros módulos de la API (media, admin)
+    snowflake = _snowflake
+    int_value = _int
+
+    async def require_owner(self, request: web.Request) -> None:
+        if not await self.auth.is_owner(self.session(request)):
+            raise ApiError(403, "web.errors.forbidden")
+
+    async def ensure_connected(self, guild: discord.Guild, user_id: int, channel_id: Any) -> HexPlayer:
+        player = get_player(guild)
+        if player is not None and player.connected:
+            return player
+        return await self._connect(guild, user_id, channel_id)
 
     @staticmethod
     def _icon(guild_id: int, icon: str | None) -> str | None:
@@ -219,6 +241,8 @@ class Api:
             "owner": owner,
             "csrf": session.csrf_token,
             "guilds": guilds,
+            "features": {**{name: self.bot.feature(name) for name in FEATURES},
+                         "history": bool(self.bot.config.history.enabled)},
         })
 
     # ───── Estadísticas ─────
@@ -286,6 +310,8 @@ class Api:
         def snowflake(value: int | None) -> str | None:
             return str(value) if value else None
 
+        request_channel = guild.get_channel(settings.request_channel_id) if settings.request_channel_id else None
+        me = guild.me
         return {
             "id": str(guild.id),
             "name": guild.name,
@@ -301,6 +327,7 @@ class Api:
                 "stay_247": settings.stay_247,
                 "stay_channel_id": snowflake(settings.stay_channel_id),
                 "request_channel_id": snowflake(settings.request_channel_id),
+                "dj_commands": settings.dj_commands,
             },
             "defaults": {
                 "language": i18n.default,
@@ -308,7 +335,20 @@ class Api:
                 "default_volume": int(cfg.player.default_volume),
                 "vote_skip": bool(cfg.vote_skip.default_enabled),
                 "announce": bool(cfg.player.announce_tracks),
+                "dj_commands": [str(name) for name in (cfg.dj.commands or [])],
             },
+            "dj_command_choices": DJ_COMMANDS,
+            "request_channel": {
+                "id": snowflake(settings.request_channel_id),
+                "name": request_channel.name if request_channel else None,
+                "exists": request_channel is not None,
+            },
+            "bot_permissions": {
+                "manage_channels": bool(me and me.guild_permissions.manage_channels),
+                "manage_messages": bool(me and me.guild_permissions.manage_messages),
+            },
+            "member_count": guild.member_count or 0,
+            "history_enabled": bool(cfg.history.enabled),
             "languages": [{"code": code, "name": i18n.language_name(code)} for code in i18n.languages],
             "roles": [{"id": str(role.id), "name": role.name} for role in reversed(guild.roles)
                       if not role.is_default() and not role.managed],
@@ -364,6 +404,13 @@ class Api:
                 if not isinstance(value, bool):
                     raise _invalid()
                 changes[key] = value
+            elif key == "dj_commands":
+                if value is None:
+                    changes[key] = None
+                elif isinstance(value, list) and all(item in DJ_COMMANDS for item in value):
+                    changes[key] = [item for item in DJ_COMMANDS if item in value]
+                else:
+                    raise _invalid()
             else:
                 raise _invalid()
 
@@ -396,19 +443,52 @@ class Api:
 
         if changes:
             await self.bot.db.update_guild(guild.id, **changes)
+        self.bot.notify_player(guild.id)
+        return web.json_response(await self._guild_payload(guild))
+
+    async def reset_settings(self, request: web.Request) -> web.Response:
+        guild = await self.guild_for(request)
+        await self.bot.db.reset_guild(guild.id)
+        player = get_player(guild)
+        if player is not None:
+            player.autoplay_enabled = False
+            player.sync_autoplay()
+        self.bot.notify_player(guild.id)
+        return web.json_response(await self._guild_payload(guild))
+
+    async def set_request_channel(self, request: web.Request) -> web.Response:
+        """Crea (sin ``channel_id``) o mueve el canal de peticiones, como /setup."""
+        guild = await self.guild_for(request)
+        data = await self.body(request)
+        channel = None
+        if data.get("channel_id"):
+            channel = guild.get_channel(self._snowflake(data["channel_id"]))
+            if not isinstance(channel, discord.TextChannel):
+                raise _invalid()
+        await setup_request_channel(self.bot, guild, channel)
+        return web.json_response(await self._guild_payload(guild))
+
+    async def delete_request_channel(self, request: web.Request) -> web.Response:
+        guild = await self.guild_for(request)
+        await remove_request_channel(self.bot, guild)
         return web.json_response(await self._guild_payload(guild))
 
     # ───── Reproductor ─────
 
-    def _player_payload(self, guild: discord.Guild) -> dict[str, Any]:
+    def player_payload(self, guild: discord.Guild) -> dict[str, Any]:
         player = get_player(guild)
         if player is None or not player.connected:
             return {"connected": False}
         queue = list(player.queue)
+        history = list(player.queue.history or [])
+        if player.current is not None and history and history[-1] == player.current:
+            history = history[:-1]
         return {
             "connected": True,
             "channel": {"id": str(player.channel.id), "name": player.channel.name} if player.channel else None,
             "listeners": len(player.listeners),
+            "listener_list": [{"id": str(m.id), "name": m.display_name, "avatar": m.display_avatar.url}
+                              for m in player.listeners[:25]],
             "paused": player.paused,
             "volume": player.volume,
             "loop": LOOP_NAMES[player.queue.mode],
@@ -416,11 +496,15 @@ class Api:
             "stay_247": player.stay_247,
             "filter": player.filter_name,
             "position": player.position,
+            "now": int(time.time() * 1000),
             "current": track_json(player.current, guild) if player.current else None,
-            "queue": [track_json(track, guild) for track in queue[:100]],
+            "queue": [track_json(track, guild) for track in queue[:200]],
             "queue_length": len(queue),
             "queue_duration": sum(track.length for track in queue if not track.is_stream),
+            "recent": [track_json(track, guild) for track in reversed(history[-10:])],
         }
+
+    _player_payload = player_payload
 
     async def player(self, request: web.Request) -> web.Response:
         guild = await self.guild_for(request)
@@ -456,6 +540,7 @@ class Api:
                 raise HexError("errors.no_player")
             await self._control(guild, player, action, data)
 
+        self.bot.notify_player(guild.id)
         return web.json_response(self._player_payload(guild))
 
     async def _control(self, guild: discord.Guild, player: HexPlayer, action: str, data: dict[str, Any]) -> None:
@@ -493,6 +578,11 @@ class Api:
             if track is None or track.is_stream or not track.is_seekable:
                 raise HexError("errors.not_seekable")
             await player.seek(self._int(data.get("position"), 0, max(0, track.length - 1000)))
+        elif action == "replay":
+            track = player.current
+            if track is None or track.is_stream or not track.is_seekable:
+                raise HexError("errors.not_seekable")
+            await player.seek(0)
         elif action == "loop":
             mode = LOOP_VALUES.get(str(data.get("mode")))
             if mode is None:
@@ -598,13 +688,17 @@ class Api:
         """Añade una canción, o todas las de un enlace a playlist/álbum, a la playlist."""
         playlist = await self._playlist(request)
         data = await self.body(request)
-        query = str(data.get("query") or "").strip()
-        if not query or len(query) > 500:
-            raise _invalid()
-        results = await search_tracks(self.bot, query, str(data["source"]) if data.get("source") else None)
-        if not results:
-            raise HexError("errors.no_results", query=query)
-        tracks = list(results.tracks) if isinstance(results, wavelink.Playlist) else [results[0]]
+        if data.get("ids") is not None and self.media is not None:
+            # Canciones elegidas en los resultados de búsqueda del panel
+            tracks = self.media.tracks_from_ids(data["ids"], self.session(request).user_id)
+        else:
+            query = str(data.get("query") or "").strip()
+            if not query or len(query) > 500:
+                raise _invalid()
+            results = await search_tracks(self.bot, query, str(data["source"]) if data.get("source") else None)
+            if not results:
+                raise HexError("errors.no_results", query=query)
+            tracks = list(results.tracks) if isinstance(results, wavelink.Playlist) else [results[0]]
         limit = int(self.bot.config.playlists.max_tracks)
         added = await self.bot.db.add_tracks(playlist.id, serialize_tracks(tracks), limit=limit)
         if added == 0:
@@ -645,6 +739,7 @@ class Api:
         if player is None or not player.connected:
             player = await self._connect(guild, session.user_id, data.get("channel_id"))
         result = await add_tracks(self.bot, player, tracks)
+        self.bot.notify_player(guild.id)
         return web.json_response({"added": len(result.tracks)})
 
     # ───── Cuenta de YouTube (solo dueños del bot) ─────

@@ -9,7 +9,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from ..checks import get_player
-from ..core.panel import build_panel_embed
+from ..core.request_channel import remove_request_channel, setup_request_channel
 from ..errors import HexError
 from ..ui import embeds
 from ..utils.formatting import escape
@@ -149,36 +149,7 @@ class Settings(commands.Cog):
         if not self.bot.feature("request_channel"):
             raise HexError("errors.feature_disabled")
         await ctx.defer()
-        guild = ctx.guild
-        lang = await self.bot.lang_for(guild.id)
-
-        if channel is None:
-            try:
-                channel = await guild.create_text_channel(
-                    name=str(self.bot.config.request_channel.channel_name),
-                    topic=self.bot.i18n.t(lang, "settings.request_topic", name=self.bot.config.bot.name),
-                    reason="HexMusic /setup",
-                )
-            except discord.HTTPException:
-                raise HexError("errors.request_channel_create_failed") from None
-
-        permissions = channel.permissions_for(guild.me)
-        if not (permissions.send_messages and permissions.embed_links and permissions.manage_messages):
-            raise HexError("errors.bot_missing_permissions", perms="Send Messages, Embed Links, Manage Messages")
-
-        settings = await self.bot.db.get_guild(guild.id)
-        if settings.request_channel_id and settings.request_message_id:
-            old_channel = guild.get_channel(settings.request_channel_id)
-            if isinstance(old_channel, discord.TextChannel):
-                try:
-                    await old_channel.get_partial_message(settings.request_message_id).delete()
-                except discord.HTTPException:
-                    pass
-
-        player = get_player(guild)
-        message = await channel.send(embed=build_panel_embed(self.bot, lang, guild, player),
-                                     view=self.bot.controls_for(lang, player))
-        await self.bot.db.update_guild(guild.id, request_channel_id=channel.id, request_message_id=message.id)
+        channel = await setup_request_channel(self.bot, ctx.guild, channel)
         await self.bot.respond(ctx, "settings.setup_done", channel=channel.mention)
 
     @commands.hybrid_command(name="unsetup", description="Remove the song request channel setup")
@@ -186,15 +157,7 @@ class Settings(commands.Cog):
     @commands.guild_only()
     @commands.has_guild_permissions(manage_guild=True)
     async def unsetup_channel(self, ctx: commands.Context) -> None:
-        settings = await self.bot.db.get_guild(ctx.guild.id)
-        if settings.request_channel_id and settings.request_message_id:
-            channel = ctx.guild.get_channel(settings.request_channel_id)
-            if isinstance(channel, discord.TextChannel):
-                try:
-                    await channel.get_partial_message(settings.request_message_id).delete()
-                except discord.HTTPException:
-                    pass
-        await self.bot.db.update_guild(ctx.guild.id, request_channel_id=None, request_message_id=None)
+        await remove_request_channel(self.bot, ctx.guild)
         await self.bot.respond(ctx, "settings.setup_removed")
 
 

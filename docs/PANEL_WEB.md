@@ -2,12 +2,26 @@
 
 HexMusic incluye un panel web ligero que se ejecuta **dentro del propio bot**. No hace falta instalar nada más: solo activarlo y conectar el inicio de sesión con Discord.
 
+El panel funciona **en tiempo real** (WebSocket): lo que pasa en Discord aparece al instante y lo que haces en la web llega a Discord igual de rápido. Tiene tema claro y oscuro, funciona en el móvil y un **mini reproductor** fijo abajo para controlar la música desde cualquier sección.
+
 | Sección | Qué permite |
 |---|---|
-| 📊 **Estadísticas** | Servidores, reproductores activos, uptime, latencia y estado de cada nodo de Lavalink (CPU, RAM). Los dueños del bot ven además la lista de servidores con música sonando |
-| 🎵 **Reproductor** | Canción actual con barra de progreso (se puede arrastrar), pausa, anterior, saltar, detener, volumen, repetición, filtros, autoplay, conectar/desconectar el bot, añadir canciones y gestionar la cola (reordenar, saltar a, quitar, mezclar, vaciar) |
-| ⚙️ **Ajustes** | Todo lo de `/settings`: idioma, prefijo, rol DJ, volumen inicial, votación, anuncios, autoplay y modo 24/7 |
-| 📁 **Mis playlists** | Crear, renombrar, borrar, quitar canciones y reproducir una playlist en cualquier servidor |
+| 🏠 **Inicio** | Cifras del bot, tus servidores (con botón para invitar el bot donde falte) y estado de los nodos de Lavalink. Los dueños ven además los reproductores activos y la actividad de todos los servidores |
+| 🎵 **Reproductor** | Carátula y progreso en vivo (se puede arrastrar), anterior, pausa, saltar, detener, mezclar, repetición, volumen con silencio, filtros, autoplay, 24/7, mover el bot de canal, oyentes y desconectar. Cola con **arrastrar y soltar**, **letra sincronizada** (LRCLIB) y canciones recientes |
+| 🔎 **Buscar** | Resultados de cualquier fuente: añadir a la cola, poner a continuación, añadir una playlist o álbum entero o **guardar en una de tus playlists**. Muestra también las coincidencias de la biblioteca |
+| 📚 **Biblioteca** | Subir audios desde el navegador (arrastrando varios a la vez, con progreso), espacio usado, filtrar, renombrar, borrar y reproducir uno o todos |
+| 🕘 **Historial** | Reproducciones por día (7, 30, 90 o 365 días), tiempo de música, canciones más escuchadas, quién pide más, últimas reproducciones y volver a poner cualquiera |
+| ⚙️ **Ajustes** | Idioma, prefijo, volumen inicial, anuncios, votación, autoplay, 24/7, rol DJ, **qué comandos requieren DJ** en ese servidor, **canal de peticiones** (crearlo, moverlo o quitarlo sin usar `/setup`) y restablecer |
+| 📁 **Mis playlists** | Crear, renombrar, hacer pública, borrar, añadir y quitar canciones y reproducirla en cualquier servidor |
+| 👑 **Administración** (dueños) | **Resumen** (memoria, miembros, almacenamiento, acciones: sincronizar comandos, recargar idiomas, guardar colas), **Configuración** global, **Servidores** (abrir o sacar el bot) y **Registros** en vivo con filtro. También la cuenta de YouTube |
+
+### Configuración global desde la web
+
+En **Administración → Configuración** los dueños del bot cambian sin tocar archivos unos 80 ajustes de `config.yml`: nombre, estado, colores, emojis, reproductor, búsqueda, funciones, votos y DJ, límites y presets de filtros.
+
+- Se guardan en `panel-config.json`, en la misma carpeta que la base de datos (`data/`), y tienen **prioridad** sobre `config.yml` y sobre las variables `HEXMUSIC__`. Así sobreviven a las actualizaciones y a los redespliegues de Docker/Dokploy.
+- La mayoría se aplica al momento. Los marcados como **Al reiniciar** (intents, caché de búsqueda, biblioteca, cola persistente) esperan al siguiente arranque.
+- *Volver a config.yml* quita el cambio del panel y recupera el valor del archivo.
 
 **¿Quién ve qué?**
 
@@ -77,9 +91,16 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
+        # Tiempo real del panel (WebSocket en /ws)
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 1h;
     }
 }
 ```
+
+> Caddy y Traefik (Dokploy) reenvían el WebSocket sin configuración extra. Si el proxy no lo permite, el panel sigue funcionando y se actualiza cada pocos segundos (arriba a la derecha pone *Sincronizando* en lugar de *En vivo*).
 
 Después:
 
@@ -118,15 +139,32 @@ El panel usa una API JSON que puedes aprovechar desde tus propias herramientas c
 | GET | `/api/me` | Usuario, servidores gestionables y token CSRF |
 | GET | `/api/stats` | Estadísticas y nodos |
 | GET | `/api/guilds/{id}` | Datos y ajustes del servidor |
-| PATCH | `/api/guilds/{id}/settings` | Cambia ajustes (`language`, `prefix`, `dj_role_id`, `default_volume`, `vote_skip`, `announce`, `autoplay`, `stay_247`) |
-| GET | `/api/guilds/{id}/player` | Estado del reproductor y cola |
-| POST | `/api/guilds/{id}/player` | Acción: `{"action": "play", "query": "…"}`, `pause`, `skip`, `previous`, `stop`, `volume`, `seek`, `loop`, `autoplay`, `filter`, `shuffle`, `clear`, `remove`, `move`, `skipto`, `join`, `leave` |
+| PATCH | `/api/guilds/{id}/settings` | Cambia ajustes (`language`, `prefix`, `dj_role_id`, `default_volume`, `vote_skip`, `announce`, `autoplay`, `stay_247`, `dj_commands`) |
+| POST | `/api/guilds/{id}/settings/reset` | Restablece los ajustes del servidor |
+| POST / DELETE | `/api/guilds/{id}/request-channel` | Crea o mueve el canal de peticiones (`{"channel_id": "…"}`, vacío = crear uno) o lo quita |
+| GET | `/api/guilds/{id}/player` | Estado del reproductor, cola y recientes |
+| POST | `/api/guilds/{id}/player` | Acción: `{"action": "play", "query": "…"}`, `pause`, `skip`, `previous`, `replay`, `stop`, `volume`, `seek`, `loop`, `autoplay`, `filter`, `shuffle`, `clear`, `remove`, `move`, `skipto`, `join`, `leave` |
+| POST | `/api/guilds/{id}/search` | Busca y devuelve resultados con un `id` temporal: `{"query": "…", "source": "spotify"}` |
+| POST | `/api/guilds/{id}/enqueue` | Añade resultados de la búsqueda: `{"ids": ["…"], "next": false}` |
+| GET | `/api/guilds/{id}/lyrics` | Letra de la canción actual (con líneas sincronizadas si existen) |
+| GET / POST | `/api/guilds/{id}/library` | Lista la biblioteca o sube un archivo (`multipart/form-data`: `file` y `title` opcional) |
+| PATCH / DELETE | `/api/guilds/{id}/library/{archivo}` | Renombra (`{"title": "…"}`) o borra un archivo |
+| POST | `/api/guilds/{id}/library/play` | Reproduce archivos: `{"ids": [1, 2]}` o `{"all": true, "shuffle": true}` |
+| GET / DELETE | `/api/guilds/{id}/history` | Últimas reproducciones (`?limit=50&before=<id>`) o borrar el historial |
+| GET | `/api/guilds/{id}/history/summary` | Totales, más escuchadas, quién pide más y reproducciones por día (`?days=30&tz=<minutos>`) |
 | GET / POST | `/api/playlists` | Lista o crea playlists |
 | GET / PATCH / DELETE | `/api/playlists/{id}` | Ver, cambiar (`name`, `public`) o borrar |
-| POST | `/api/playlists/{id}/tracks` | Añadir una canción o una playlist/álbum entero: `{"query": "…"}` |
+| POST | `/api/playlists/{id}/tracks` | Añadir una canción, una playlist/álbum (`{"query": "…"}`) o resultados de búsqueda (`{"ids": ["…"]}`) |
 | DELETE | `/api/playlists/{id}/tracks/{posición}` | Quitar una canción |
 | POST | `/api/playlists/{id}/play` | Reproducir en un servidor: `{"guild_id": "…"}` |
 | GET / POST | `/api/youtube` | Solo dueños: estado de la cuenta de YouTube y acciones `{"action": "link" \| "cancel" \| "unlink"}` |
+| GET | `/api/stats/history` | Solo dueños: actividad de todos los servidores |
+| GET | `/api/admin/overview` | Solo dueños: estado del bot, versiones y almacenamiento |
+| POST | `/api/admin/actions` | Solo dueños: `{"action": "sync" \| "reload_locales" \| "save_sessions" \| "purge_history"}` |
+| GET / PATCH | `/api/admin/config` | Solo dueños: ajustes globales; `{"changes": {"player.max_volume": 200}, "reset": ["branding.color"]}` |
+| GET | `/api/admin/guilds` · POST `/api/admin/guilds/{id}/leave` | Solo dueños: servidores del bot y sacar el bot de uno |
+| GET | `/api/admin/logs?after=0&level=INFO` | Solo dueños: últimas líneas del registro |
+| WS | `/ws` | Tiempo real: envía `{"op": "subscribe", "guild_id": "…"}` y recibe `{"type": "player", "data": …}` en cada cambio |
 
 Los errores devuelven `{"error": "mensaje traducido"}` con el código HTTP correspondiente.
 

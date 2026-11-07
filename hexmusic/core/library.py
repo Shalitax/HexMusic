@@ -16,6 +16,7 @@ import logging
 import secrets
 import time
 import uuid
+from collections.abc import AsyncIterator
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Any
 
@@ -51,11 +52,21 @@ class Library:
         self.host = str(cfg.host or "127.0.0.1")
         self.port = int(cfg.port)
         self.base_url = (str(cfg.public_url or "") or f"http://127.0.0.1:{self.port}").rstrip("/")
-        self.max_file_bytes = int(cfg.max_file_mb) * 1024 * 1024
-        self.max_guild_bytes = int(cfg.max_guild_mb) * 1024 * 1024
-        self.max_files = int(cfg.max_files)
         self._secret = b""
         self._runner: web.AppRunner | None = None
+
+    # Los límites se leen en cada uso: se pueden cambiar desde el panel web sin reiniciar
+    @property
+    def max_file_bytes(self) -> int:
+        return int(self.bot.config.library.max_file_mb) * 1024 * 1024
+
+    @property
+    def max_guild_bytes(self) -> int:
+        return int(self.bot.config.library.max_guild_mb) * 1024 * 1024
+
+    @property
+    def max_files(self) -> int:
+        return int(self.bot.config.library.max_files)
 
     @property
     def enabled(self) -> bool:
@@ -149,34 +160,74 @@ class Library:
             raise HexError("errors.library_invalid_file")
         return results[0]
 
+    @staticmethod
+    def _bad_format() -> HexError:
+        return HexError("errors.library_bad_format", formats=", ".join(sorted(e.lstrip(".") for e in AUDIO_EXTENSIONS)))
+
+    async def _check_space(self, guild_id: int, size: int) -> None:
+        if size > self.max_file_bytes:
+            raise HexError("errors.library_file_too_big", max=self.max_file_bytes // 1_048_576)
+        count, used = await self.bot.db.library_usage(guild_id)
+        if self.max_files and count >= self.max_files:
+            raise HexError("errors.library_full_files", max=self.max_files)
+        if self.max_guild_bytes and used + size > self.max_guild_bytes:
+            raise HexError("errors.library_full_space", used=used // 1_048_576, max=self.max_guild_bytes // 1_048_576)
+
+    def _temporary(self, guild_id: int, ext: str) -> Path:
+        folder = self.directory / str(guild_id)
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder / f"tmp-{uuid.uuid4().hex}{ext}"
+
     async def upload(self, guild: discord.Guild, attachment: discord.Attachment, uploader: discord.abc.User,
                      title: str | None = None) -> LibraryEntry:
+        """Guarda un adjunto de Discord (/upload)."""
         self._require_running()
         ext = file_extension(attachment.filename)
         if not is_audio_attachment(attachment) or ext not in AUDIO_EXTENSIONS:
-            raise HexError("errors.library_bad_format", formats=", ".join(sorted(e.lstrip(".") for e in AUDIO_EXTENSIONS)))
-        if attachment.size > self.max_file_bytes:
-            raise HexError("errors.library_file_too_big", max=self.max_file_bytes // 1_048_576)
-        count, used = await self.bot.db.library_usage(guild.id)
-        if self.max_files and count >= self.max_files:
-            raise HexError("errors.library_full_files", max=self.max_files)
-        if self.max_guild_bytes and used + attachment.size > self.max_guild_bytes:
-            raise HexError("errors.library_full_space", used=used // 1_048_576, max=self.max_guild_bytes // 1_048_576)
+            raise self._bad_format()
+        await self._check_space(guild.id, attachment.size)
 
-        folder = self.directory / str(guild.id)
-        folder.mkdir(parents=True, exist_ok=True)
-        temporary = folder / f"tmp-{uuid.uuid4().hex}{ext}"
+        temporary = self._temporary(guild.id, ext)
         try:
             await attachment.save(temporary)
         except (discord.HTTPException, OSError) as exc:
             temporary.unlink(missing_ok=True)
             log.warning("No se pudo descargar el adjunto %s: %s", attachment.filename, exc)
             raise HexError("errors.library_download_failed") from None
+        return await self._store(guild.id, temporary, attachment.filename, ext, uploader.id, title)
 
+    async def upload_stream(self, guild_id: int, filename: str, chunks: AsyncIterator[bytes], uploader_id: int,
+                            title: str | None = None) -> LibraryEntry:
+        """Guarda un archivo que llega por partes (subida desde el panel web)."""
+        self._require_running()
+        ext = file_extension(filename)
+        if ext not in AUDIO_EXTENSIONS:
+            raise self._bad_format()
+        await self._check_space(guild_id, 0)
+
+        temporary = self._temporary(guild_id, ext)
+        size = 0
+        try:
+            with temporary.open("wb") as fp:
+                async for chunk in chunks:
+                    size += len(chunk)
+                    if size > self.max_file_bytes:
+                        raise HexError("errors.library_file_too_big", max=self.max_file_bytes // 1_048_576)
+                    fp.write(chunk)
+            if size == 0:
+                raise self._bad_format()
+            await self._check_space(guild_id, size)
+        except BaseException:
+            temporary.unlink(missing_ok=True)
+            raise
+        return await self._store(guild_id, temporary, filename, ext, uploader_id, title)
+
+    async def _store(self, guild_id: int, temporary: Path, filename: str, ext: str, uploader_id: int,
+                     title: str | None) -> LibraryEntry:
+        """Registra el archivo descargado, comprueba con Lavalink que suena y guarda su duración y título."""
         clean_title = (title or "").strip()[:100]
         entry = await self.bot.db.add_library_track(
-            guild.id, clean_title or display_title(attachment.filename), attachment.filename[:200], ext,
-            temporary.stat().st_size, uploader.id,
+            guild_id, clean_title or display_title(filename), filename[:200], ext, temporary.stat().st_size, uploader_id,
         )
         temporary.replace(self.path_for(entry))
         try:
@@ -191,7 +242,7 @@ class Library:
         await self.bot.db.update_library_track(entry.id, **changes)
         entry.length = changes["length"]
         entry.title = changes.get("title", entry.title)
-        log.info("Biblioteca de %s: subida %r (%d KB) por %s", guild.id, entry.title, entry.size // 1024, uploader.id)
+        log.info("Biblioteca de %s: subida %r (%d KB) por %s", guild_id, entry.title, entry.size // 1024, uploader_id)
         return entry
 
     async def delete(self, entry: LibraryEntry) -> None:

@@ -169,6 +169,11 @@ request_channel:
   channel_name: "hexmusic"
   delete_after: 8 # segundos hasta borrar las respuestas en el canal
 
+# Historial de reproducción (panel web → Historial y estadísticas)
+history:
+  enabled: true
+  retention_days: 90 # las reproducciones más antiguas se borran solas
+
 filters:
   # Añade tus propios presets (formato de filtros de Lavalink) o sobrescribe los incluidos.
   # Bandas del ecualizador: 0 (graves, 25 Hz) … 14 (agudos, 16 kHz). Ganancia: -0.25 a 1.0

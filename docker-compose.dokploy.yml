@@ -3,76 +3,41 @@
 # ╚══════════════════════════════════════════════════════════════╝
 # Guía completa: docs/DOKPLOY.md
 #
-# Diferencias con docker-compose.yml (uso local):
-#  • No publica puertos en el host: el panel se expone con un dominio
-#    de Dokploy (Traefik → servicio "bot", puerto 8080).
-#  • No usa container_name (Dokploy lo desaconseja: rompe logs y métricas).
-#  • config.yml y locales/ ya están dentro de la imagen del bot (Dockerfile).
-#  • lavalink/application.yml se hornea en una imagen derivada de Lavalink
-#    (lavalink/Dockerfile), así no hacen falta File Mounts ni bind mounts al
-#    repositorio, que Dokploy borra y vuelve a clonar en cada despliegue.
-#  • lavalink/plugins usa un volumen con nombre para conservar los permisos
-#    del usuario 322 con el que corre Lavalink. lavalink-init se encarga de
-#    crearlo/escribirlo antes de arrancar Lavalink.
+# Un único contenedor, igual que el egg de Pterodactyl: la imagen
+# docker/Dockerfile incluye el bot, Lavalink y el cifrado de YouTube
+# (yt-cipher). Lavalink escucha en 127.0.0.1 dentro del contenedor, así que
+# no depende de nombres de servicio ni de redes entre contenedores (lo que
+# provocaba "Cannot connect to host lavalink:2333").
 #
 # Antes de desplegar:
-#  1. Environment: pega las variables del .env (WEB_ENABLED=true).
+#  1. Environment: DISCORD_TOKEN y, para el panel, WEB_ENABLED=true,
+#     WEB_PUBLIC_URL y WEB_CLIENT_SECRET (ver docs/DOKPLOY.md).
 #  2. Domains: servicio "bot", puerto 8080, HTTPS activado.
 
 services:
-  lavalink-init:
-    image: alpine:3.20
-    restart: "no"
-    command: ["sh", "-c", "mkdir -p /plugins && chown -R 322:322 /plugins"]
-    volumes:
-      - lavalink-plugins:/plugins
-    network_mode: "none"
-
-  lavalink:
-    build:
-      context: ./lavalink
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      JAVA_TOOL_OPTIONS: "-Xmx${LAVALINK_MEMORY:-1G}"
-    volumes:
-      - lavalink-plugins:/opt/Lavalink/plugins
-    depends_on:
-      lavalink-init:
-        condition: service_completed_successfully
-    expose:
-      - "2333"
-    networks:
-      - hexmusic
-
   bot:
-    build: .
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
     restart: unless-stopped
     env_file: .env
-    environment:
-      LAVALINK_URI: "http://lavalink:2333"
-      # Biblioteca (/upload): Lavalink descarga los archivos del bot dentro de la red de Docker
-      LIBRARY_HOST: "0.0.0.0"
-      LIBRARY_PUBLIC_URL: "http://bot:2340"
-    depends_on:
-      - lavalink
+    # Tiempo para que el bot guarde la cola y cierre Lavalink al redesplegar.
+    stop_grace_period: 30s
     expose:
-      # Mantén WEB_PORT=8080 en las variables de entorno y usa este mismo
-      # puerto al crear el dominio en Dokploy.
+      # Panel web. Mantén WEB_PORT=8080 (o no lo definas) y usa este puerto
+      # al crear el dominio en Dokploy.
       - "8080"
     volumes:
+      # Base de datos, biblioteca, token de YouTube, contraseñas generadas,
+      # plugins y registros de Lavalink.
       - hexmusic-data:/app/data
     networks:
-      - hexmusic
       # Permite que Traefik (Dokploy) llegue al panel web.
       - dokploy-network
 
 networks:
-  hexmusic:
   dokploy-network:
     external: true
 
 volumes:
   hexmusic-data:
-  lavalink-plugins:

@@ -99,6 +99,8 @@ class Events(commands.Cog):
         if not isinstance(player, HexPlayer) or player.guild is None:
             return
         player.skip_votes.clear()
+        self.bot.notify_player(player.guild.id)
+        await self.bot.history.record(player, payload.track)
         await refresh_panel(self.bot, player.guild, player)
 
     @commands.Cog.listener()
@@ -108,6 +110,8 @@ class Events(commands.Cog):
             return
         # Se espera un momento por si el autoplay o la cola inician otra canción
         await asyncio.sleep(1.5)
+        if player.guild is not None:
+            self.bot.notify_player(player.guild.id)
         if player.connected and player.current is None and not player.queue:
             await refresh_panel(self.bot, player.guild, player, idle=True)
 
@@ -150,6 +154,7 @@ class Events(commands.Cog):
                 if player is not None:
                     player.cancel_empty_task()
                 await refresh_panel(self.bot, guild, player, idle=True)
+            self.bot.notify_player(guild.id)
             return
 
         player = get_player(guild)

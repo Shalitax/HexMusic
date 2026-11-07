@@ -15,8 +15,12 @@ import wavelink
 from aiohttp import web
 
 from ..errors import HexError
+from .admin import AdminApi
 from .api import Api, ApiError
 from .auth import SESSION_COOKIE, STATE_COOKIE, Auth, AuthExpired, DiscordAPIError, Session
+from .logbuffer import LogBuffer
+from .media import MediaApi
+from .realtime import Realtime
 
 if TYPE_CHECKING:
     from ..bot import HexMusic
@@ -26,10 +30,17 @@ log = logging.getLogger("hexmusic.web")
 STATIC_DIR = Path(__file__).parent / "static"
 PUBLIC_API = {"/api/public", "/api/i18n"}
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
-CSP = (
-    "default-src 'self'; img-src 'self' https: data:; style-src 'self'; script-src 'self'; "
-    "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
-)
+# Las subidas a la biblioteca van por partes (multipart) y no pasan por este límite
+MAX_JSON_BODY = 512 * 1024
+
+
+def content_security_policy(host: str) -> str:
+    # connect-src incluye el WebSocket del tiempo real (navegadores antiguos no lo cubren con 'self')
+    sockets = f" ws://{host} wss://{host}" if host and re.fullmatch(r"[A-Za-z0-9.\-:\[\]]+", host) else ""
+    return (
+        "default-src 'self'; img-src 'self' https: data:; style-src 'self'; script-src 'self'; "
+        f"connect-src 'self'{sockets}; media-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+    )
 
 
 class WebPanel:
@@ -37,6 +48,11 @@ class WebPanel:
         self.bot = bot
         self.auth = Auth(bot)
         self.api = Api(bot, self.auth)
+        self.media = MediaApi(self.api)
+        self.api.media = self.media
+        self.logs = LogBuffer()
+        self.admin = AdminApi(self.api, self.logs)
+        self.realtime = Realtime(self)
         self.app = self._build_app()
         self._runner: web.AppRunner | None = None
 
@@ -78,26 +94,33 @@ class WebPanel:
                 log.exception("Error no controlado en %s %s", request.method, request.path)
                 return self._error(500, t(lang, "errors.unexpected"))
 
-        app = web.Application(middlewares=[api_middleware], client_max_size=256 * 1024)
+        app = web.Application(middlewares=[api_middleware], client_max_size=MAX_JSON_BODY)
         app.on_response_prepare.append(self._security_headers)
         app.router.add_get("/", self.index)
         app.router.add_get("/auth/login", self.login)
         app.router.add_get("/auth/callback", self.callback)
         app.router.add_post("/auth/logout", self.logout)
+        app.router.add_get("/ws", self.realtime.handler)
         app.router.add_static("/static/", STATIC_DIR)
         self.api.register(app)
+        self.media.register(app)
+        self.admin.register(app)
         return app
 
     async def start(self) -> None:
         cfg = self.bot.config.web
         await self.bot.db.purge_web_sessions()
+        self.logs.attach()
         self._runner = web.AppRunner(self.app, access_log=None)
         await self._runner.setup()
         site = web.TCPSite(self._runner, host=str(cfg.host), port=int(cfg.port))
         await site.start()
+        self.realtime.start()
         log.info("Panel web disponible en %s (escuchando en %s:%s)", self.auth.public_url, cfg.host, cfg.port)
 
     async def stop(self) -> None:
+        await self.realtime.stop()
+        self.logs.detach()
         if self._runner is not None:
             await self._runner.cleanup()
             self._runner = None
@@ -109,9 +132,12 @@ class WebPanel:
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "same-origin")
-        response.headers.setdefault("Content-Security-Policy", CSP)
+        response.headers.setdefault("Content-Security-Policy", content_security_policy(request.host))
         if request.path.startswith("/api/") or request.path.startswith("/auth/"):
             response.headers["Cache-Control"] = "no-store"
+        elif request.path.startswith("/static/"):
+            # Se revalida siempre (304 si no cambió): tras actualizar el bot nadie se queda con JS antiguo
+            response.headers["Cache-Control"] = "no-cache"
 
     @staticmethod
     def _check_csrf(request: web.Request, session: Session) -> None:

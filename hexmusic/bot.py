@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import signal
 import time
 from functools import partial
 from pathlib import Path
@@ -17,7 +18,9 @@ from discord.ext import commands
 
 from . import __version__
 from .config import Config
+from .core.history import History
 from .core.library import Library
+from .core.overrides import ConfigOverrides
 from .core.sessions import SessionStore
 from .core.youtube import YouTubeAccount
 from .database import Database
@@ -61,15 +64,11 @@ class HexMusic(commands.AutoShardedBot):
     def __init__(self, *, config: Config, root: Path) -> None:
         self.config = config
         self.root = root
+        # Lo primero: los ajustes guardados desde el panel web se aplican encima de config.yml
+        self.overrides = ConfigOverrides(config, root)
 
         intents = discord.Intents.default()
         intents.message_content = bool(config.bot.message_content_intent)
-
-        status = config.bot.status
-        activity = None
-        if status.text:
-            activity_type = ACTIVITY_TYPES.get(str(status.type).lower(), discord.ActivityType.listening)
-            activity = discord.Activity(type=activity_type, name=str(status.text))
 
         super().__init__(
             command_prefix=self._get_prefix,
@@ -77,7 +76,7 @@ class HexMusic(commands.AutoShardedBot):
             help_command=None,
             case_insensitive=True,
             strip_after_prefix=True,
-            activity=activity,
+            activity=self.build_activity(),
             owner_ids={int(owner) for owner in (config.bot.owner_ids or [])},
             allowed_mentions=discord.AllowedMentions(everyone=False, roles=False, replied_user=False),
         )
@@ -89,6 +88,7 @@ class HexMusic(commands.AutoShardedBot):
         self.youtube = YouTubeAccount(self)
         self.sessions = SessionStore(self)
         self.library = Library(self)
+        self.history = History(self)
         self.http_session: aiohttp.ClientSession | None = None
         self.controls_view: ControlsView | None = None
         self.started_at = time.time()
@@ -96,10 +96,12 @@ class HexMusic(commands.AutoShardedBot):
         self.web: Any = None  # WebPanel cuando web.enabled = true
         self.console: Any = None  # Console cuando bot.console = true
         self._shutting_down = False
+        self._stop_task: asyncio.Task[None] | None = None
 
     # ───── Arranque ─────
 
     async def setup_hook(self) -> None:
+        self._install_stop_signal()
         self.http_session = aiohttp.ClientSession(headers={"User-Agent": f"HexMusic/{__version__}"})
         await self.db.connect()
 
@@ -120,6 +122,7 @@ class HexMusic(commands.AutoShardedBot):
             log.info("Módulo cargado: %s", extension)
 
         await self.library.start()
+        self.history.start()
 
         # En segundo plano: el bot arranca aunque Lavalink tarde en estar listo
         self._nodes_task = asyncio.create_task(self.connect_nodes())
@@ -142,6 +145,39 @@ class HexMusic(commands.AutoShardedBot):
 
         if self.config.bot.sync_commands:
             await self.sync_app_commands()
+
+    def build_activity(self) -> discord.Activity | None:
+        status = self.config.bot.status
+        if not status.text:
+            return None
+        activity_type = ACTIVITY_TYPES.get(str(status.type).lower(), discord.ActivityType.listening)
+        return discord.Activity(type=activity_type, name=str(status.text))
+
+    async def apply_live_config(self, keys: list[str]) -> None:
+        """Aplica al momento los ajustes globales cambiados desde el panel web."""
+        if any(key.startswith("branding.") for key in keys):
+            self.colors = Colors(self.config.branding)
+        if "bot.default_language" in keys and str(self.config.bot.default_language) in self.i18n.languages:
+            self.i18n.default = str(self.config.bot.default_language)
+        if any(key.startswith("bot.status.") for key in keys) and self.is_ready():
+            await self.change_presence(activity=self.build_activity())
+
+    def notify_player(self, guild_id: int) -> None:
+        """Avisa al panel web (tiempo real) de que el reproductor de un servidor cambió."""
+        if self.web is not None:
+            self.web.realtime.notify(guild_id)
+
+    def _install_stop_signal(self) -> None:
+        """SIGTERM (docker stop, redeploy) cierra igual que ^C: guarda la cola y se desconecta ordenadamente."""
+        try:
+            asyncio.get_running_loop().add_signal_handler(signal.SIGTERM, self._on_stop_signal)
+        except (NotImplementedError, RuntimeError, AttributeError):  # Windows no admite add_signal_handler
+            pass
+
+    def _on_stop_signal(self) -> None:
+        if self._stop_task is None:
+            log.info("Señal de parada recibida; cerrando HexMusic...")
+            self._stop_task = asyncio.create_task(self.close())
 
     async def connect_nodes(self) -> None:
         idle = int(self.config.player.idle_timeout) or None
@@ -180,6 +216,7 @@ class HexMusic(commands.AutoShardedBot):
         # Antes de desconectar nada: foto de lo que suena para recuperarlo al volver
         await self.sessions.close()
         await self.youtube.close()
+        self.history.stop()
         if self._nodes_task is not None:
             self._nodes_task.cancel()
         if self.web is not None:
@@ -258,8 +295,15 @@ class HexMusic(commands.AutoShardedBot):
             return member.get_role(settings.dj_role_id) is not None
         return not strict
 
+    async def dj_commands(self, guild_id: int) -> list[str]:
+        """Comandos que requieren DJ: los del servidor (panel web) o, si no tiene, los de config.yml."""
+        settings = await self.db.get_guild(guild_id)
+        if settings.dj_commands is not None:
+            return list(settings.dj_commands)
+        return [str(name) for name in (self.config.dj.commands or [])]
+
     async def can_use(self, member: discord.Member, player: HexPlayer | None, command_name: str) -> bool:
-        restricted = {str(name) for name in (self.config.dj.commands or [])}
+        restricted = set(await self.dj_commands(member.guild.id))
         if command_name not in restricted:
             return True
         return await self.is_dj(member, player)

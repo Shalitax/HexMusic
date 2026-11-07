@@ -1,0 +1,4 @@
+# Los scripts se ejecutan en Linux: siempre con finales de línea LF.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf

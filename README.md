@@ -31,7 +31,7 @@ YouTube · YouTube Music · Spotify · Apple Music · Deezer · Tidal · Qobuz �
 | 📝 **Letras** | `/lyrics` con LRCLIB, sin clave de API. |
 | 🌍 **Multi-idioma** | Español e inglés, por servidor. Las descripciones de los comandos slash también se traducen. Añadir un idioma es copiar un JSON. |
 | ⌨️ **Slash + prefijo** | Todos los comandos funcionan como `/play` y como `hm!play`. |
-| 🖥️ **Panel web** | Inicio de sesión con Discord: reproductor en vivo, cola, ajustes del servidor, estadísticas y playlists desde el navegador. [Más info](docs/PANEL_WEB.md) |
+| 🖥️ **Panel web** | Inicio de sesión con Discord y actualización en tiempo real: reproductor con letra sincronizada, cola con arrastrar y soltar, búsqueda, biblioteca (subidas desde el navegador), historial con estadísticas, ajustes y permisos DJ por servidor, y para los dueños configuración global, servidores y registros. Tema claro/oscuro y móvil. [Más info](docs/PANEL_WEB.md) |
 | 🦖 **Egg de Pterodactyl** | Imagen propia con Lavalink interno, variables en español, actualización automática y consola con comandos. Ver `Pterodactyl eggs/HexMusic`. |
 | 🐳 **Integración fácil** | Bot + Lavalink con un solo `docker compose up -d`. |
 
@@ -69,8 +69,10 @@ Invita el bot a tu servidor (ver [Instalación → Invitar el bot](docs/INSTALAC
 HexMusic/
 ├── config.yml              ← personalización (colores, emojis, límites, funciones)
 ├── .env.example            ← plantilla de secretos (token, contraseñas, credenciales)
-├── docker-compose.yml      ← bot + Lavalink
-├── Dockerfile
+├── docker-compose.yml      ← bot + Lavalink (uso local)
+├── docker-compose.dokploy.yml ← Dokploy: un contenedor con todo
+├── Dockerfile              ← imagen solo del bot
+├── docker/                 ← imagen todo en uno (bot + Lavalink + yt-cipher) y su arranque
 ├── requirements.txt
 ├── lavalink/
 │   ├── application.yml     ← Lavalink ajustado para máxima calidad + plugins
@@ -82,14 +84,15 @@ HexMusic/
 │   ├── __main__.py         ← punto de entrada (python -m hexmusic)
 │   ├── bot.py              ← clase principal, errores, permisos DJ
 │   ├── config.py           ← carga de config.yml + variables de entorno
-│   ├── database.py         ← SQLite: ajustes por servidor y playlists
+│   ├── database.py         ← SQLite: ajustes por servidor, playlists, biblioteca e historial
 │   ├── i18n.py             ← sistema de idiomas
 │   ├── player.py           ← reproductor (extiende wavelink.Player)
 │   ├── checks.py           ← validaciones de canal de voz y DJ
-│   ├── core/               ← reproducción, panel y presets de filtros
+│   ├── core/               ← reproducción, panel, presets, historial y ajustes del panel web
 │   ├── ui/                 ← embeds y botones
 │   ├── utils/              ← formato y letras
-│   ├── web/                ← panel web (servidor, login con Discord, API y página)
+│   ├── web/                ← panel web: servidor, login con Discord, API, tiempo real y administración
+│   │   └── static/         ← interfaz (HTML, CSS y módulos JS sin dependencias externas)
 │   ├── console.py          ← comandos escritos en la consola (Pterodactyl)
 │   └── cogs/               ← comandos: music, filters, playlists, settings, general, events
 └── docs/                   ← guías

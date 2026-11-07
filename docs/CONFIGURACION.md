@@ -174,6 +174,13 @@ Los archivos se reproducen con la fuente `http` de Lavalink (ya activada); no ha
 | `channel_name` | `hexmusic` | Nombre del canal que crea `/setup` |
 | `delete_after` | `8` | Segundos hasta borrar las respuestas del bot en ese canal |
 
+### `history`
+
+| Clave | Por defecto | Descripción |
+|---|---|---|
+| `enabled` | `true` | Guarda cada canción reproducida para el historial y las estadísticas del panel web |
+| `retention_days` | `90` | Días que se conservan; las reproducciones más antiguas se borran solas |
+
 ### `filters`
 
 | Clave | Descripción |
@@ -190,6 +197,10 @@ Los archivos se reproducen con la fuente `http` de Lavalink (ya activada); no ha
 | `public_url` | `${WEB_PUBLIC_URL}` | Dirección con la que se abre en el navegador (base del Redirect de Discord) |
 | `client_secret` | `${WEB_CLIENT_SECRET}` | Client Secret de OAuth2 de tu aplicación de Discord |
 | `session_days` | `7` | Días que dura una sesión |
+
+### Ajustes cambiados desde el panel web
+
+Los dueños del bot pueden cambiar unos 80 ajustes en **Panel web → Administración → Configuración**. Se guardan en `panel-config.json`, en la carpeta de la base de datos (`data/`), y tienen prioridad sobre `config.yml` y sobre las variables `HEXMUSIC__`. El orden completo, de menor a mayor prioridad, es: valores por defecto → `config.yml` → variables `HEXMUSIC__` → panel web. Para volver al valor de `config.yml`, usa *Volver a config.yml* en el panel o borra la clave de ese archivo. Ver [Panel web](PANEL_WEB.md#configuración-global-desde-la-web).
 
 ### Sobrescribir ajustes con variables de entorno
 
