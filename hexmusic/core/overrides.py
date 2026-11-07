@@ -70,6 +70,9 @@ SECTIONS: list[Section] = [
         Field("bot.status.type", "select", options=STATUS_TYPES),
         Field("bot.status.text", "text", max_length=128),
         Field("bot.message_content_intent", "bool", live=False),
+        Field("web.support_url", "url"),
+        Field("web.terms_url", "url"),
+        Field("web.privacy_url", "url"),
     ]),
     Section("branding", "palette", [
         Field("branding.color", "color"),
@@ -131,6 +134,7 @@ SECTIONS: list[Section] = [
         Field("library.max_file_mb", "int", min=1, max=1024),
         Field("library.max_guild_mb", "int", min=0, max=100000),
         Field("library.max_files", "int", min=0, max=100000),
+        Field("library.max_total_mb", "int", min=0, max=10_000_000),
         Field("request_channel.channel_name", "text", min_length=1, max_length=100),
         Field("request_channel.delete_after", "int", min=0, max=300),
         Field("web.session_days", "int", min=1, max=90),

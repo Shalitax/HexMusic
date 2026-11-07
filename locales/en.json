@@ -74,7 +74,8 @@
     "library_not_found": "There's no file called **{name}** in the server library.",
     "library_dj_only": "Only administrators or members with the DJ role can manage the library.",
     "library_empty": "The server library is empty.",
-    "attachment_not_storable": "Files attached on Discord can't be saved to a playlist: their link expires in a day. Upload it to the library with `/upload` and add it from there."
+    "attachment_not_storable": "Files attached on Discord can't be saved to a playlist: their link expires in a day. Upload it to the library with `/upload` and add it from there.",
+    "library_full_total": "The bot's library storage is full. Let the bot administrators know."
   },
   "nowplaying": {
     "title": "Now playing",
@@ -341,7 +342,9 @@
       },
       "feature_player": "Control the music in real time",
       "feature_library": "Upload your own audio files",
-      "feature_stats": "Listening history and statistics"
+      "feature_stats": "Listening history and statistics",
+      "invite": "Add to your server",
+      "or_manage": "Already have it? Log in to manage it."
     },
     "nav": {
       "stats": "Statistics",
@@ -378,7 +381,11 @@
       "rt_connecting": "Connecting",
       "rt_connecting_hint": "Connecting to the bot…",
       "rt_off": "Offline",
-      "rt_off_hint": "No connection to the bot."
+      "rt_off_hint": "No connection to the bot.",
+      "support": "Support",
+      "terms": "Terms",
+      "privacy": "Privacy",
+      "add_bot": "Add to another server"
     },
     "errors": {
       "generic": "Something went wrong. Please try again.",
@@ -891,7 +898,11 @@
         "emojis-sources-bandcamp": "Source: Bandcamp",
         "emojis-sources-twitch": "Source: Twitch",
         "emojis-sources-http": "Source: direct links",
-        "emojis-sources-default": "Source: other sources"
+        "emojis-sources-default": "Source: other sources",
+        "library-max_total_mb": "Total library space (MB)",
+        "web-support_url": "Support server link",
+        "web-terms_url": "Terms of service link",
+        "web-privacy_url": "Privacy policy link"
       },
       "h": {
         "bot-name": "Shown in messages and in this panel.",
@@ -922,7 +933,11 @@
         "library-max_guild_mb": "0 = unlimited.",
         "library-max_files": "0 = unlimited.",
         "request_channel-delete_after": "0 = never deleted.",
-        "filters-presets": "Lavalink filter format. Example: {\"mybass\": {\"equalizer\": [{\"band\": 0, \"gain\": 0.2}]}}. null removes a built-in preset."
+        "filters-presets": "Lavalink filter format. Example: {\"mybass\": {\"equalizer\": [{\"band\": 0, \"gain\": 0.2}]}}. null removes a built-in preset.",
+        "library-max_total_mb": "Sum of all servers. 0 = unlimited. Recommended for a public bot so the disk does not fill up.",
+        "web-support_url": "Invite to your Discord support server. Shown on the panel landing page.",
+        "web-terms_url": "Discord asks for it to verify a public bot.",
+        "web-privacy_url": "Discord asks for it to verify a public bot."
       }
     }
   },

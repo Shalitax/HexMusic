@@ -156,6 +156,7 @@ Tienen permisos DJ quienes cumplan **al menos una** condición: administrador o 
 | `max_file_mb` | `25` | Tamaño máximo por archivo |
 | `max_guild_mb` | `500` | Espacio por servidor (0 = sin límite) |
 | `max_files` | `200` | Archivos por servidor (0 = sin límite) |
+| `max_total_mb` | `0` | Espacio total entre todos los servidores (0 = sin límite). Ver [Bot público](BOT_PUBLICO.md) |
 
 Los archivos se reproducen con la fuente `http` de Lavalink (ya activada); no hace falta la fuente `local`.
 
@@ -197,6 +198,7 @@ Los archivos se reproducen con la fuente `http` de Lavalink (ya activada); no ha
 | `public_url` | `${WEB_PUBLIC_URL}` | Dirección con la que se abre en el navegador (base del Redirect de Discord) |
 | `client_secret` | `${WEB_CLIENT_SECRET}` | Client Secret de OAuth2 de tu aplicación de Discord |
 | `session_days` | `7` | Días que dura una sesión |
+| `support_url` · `terms_url` · `privacy_url` | `""` | Enlaces de soporte, términos y privacidad en la página de entrada del panel (bot público) |
 
 ### Ajustes cambiados desde el panel web
 

@@ -274,11 +274,17 @@ body.has-mini #toasts { bottom: calc(var(--mini) + 16px); }
   background: radial-gradient(900px 500px at 85% -10%, var(--accent-soft), transparent 60%), radial-gradient(700px 400px at 0% 110%, var(--accent-softer), transparent 60%), var(--bg); }
 .login-card { width: min(420px, 100%); background: var(--surface); border: 1px solid var(--border); border-radius: 22px; padding: 38px 30px 30px; display: grid; gap: 16px; justify-items: center; text-align: center; box-shadow: var(--shadow-lg); }
 .login-avatar { width: 88px; height: 88px; border-radius: 26px; box-shadow: 0 0 0 5px var(--accent-soft); object-fit: cover; }
+.login-avatar.placeholder .icon { width: 40px; height: 40px; }
 .login-card h1 { font-size: 26px; }
 .login-features { display: grid; gap: 8px; text-align: left; width: 100%; margin: 4px 0; }
 .login-features div { display: flex; gap: 10px; align-items: center; color: var(--text-2); font-size: 13px; }
 .login-features .icon { color: var(--accent-ink); }
 .login-footer { display: flex; gap: 8px; align-items: center; justify-content: center; }
+.public-links { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; }
+.public-links.center { justify-content: center; }
+.public-links a { color: var(--muted); }
+.public-links a:hover { color: var(--text); }
+.sidebar-footer .public-links { margin: 4px 0 6px; }
 
 /* ───── Estructura ───── */
 .layout { display: grid; grid-template-columns: var(--sidebar) minmax(0, 1fr); min-height: 100vh; }
@@ -546,7 +552,8 @@ body.has-mini .savebar { bottom: calc(var(--mini) + 16px); }
   .list-row { flex-wrap: wrap; }
   .list-row .actions { opacity: 1; width: 100%; justify-content: flex-end; margin-top: -6px; }
   .home-hero { flex-wrap: wrap; }
-  .home-hero > .btn { width: 100%; }
+  .home-hero > .page-actions { width: 100%; }
+  .home-hero > .page-actions .btn { flex: 1; }
   .topbar .lang-select { display: none; }
   .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tile-value { font-size: 20px; }

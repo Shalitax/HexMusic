@@ -60,8 +60,9 @@ Invita el bot a tu servidor (ver [Instalación → Invitar el bot](docs/INSTALAC
 | [🎨 Personalización](docs/PERSONALIZACION.md) | Branding, emojis, presets, idiomas, nuevos comandos |
 | [🧱 Arquitectura](docs/ARQUITECTURA.md) | Cómo está construido el bot por dentro |
 | [🖥️ Panel web](docs/PANEL_WEB.md) | Activar el panel, login con Discord, HTTPS, seguridad y API |
-| [� Dokploy](docs/DOKPLOY.md) | Desplegar bot + Lavalink con dominio y HTTPS en un servidor con Dokploy |
-| [�🛠️ Solución de problemas](docs/SOLUCION_PROBLEMAS.md) | Errores frecuentes y cómo resolverlos |
+| [🚀 Dokploy](docs/DOKPLOY.md) | Desplegar bot + Lavalink en un contenedor, con dominio y HTTPS, en un servidor con Dokploy |
+| [🌍 Bot público](docs/BOT_PUBLICO.md) | Abrir el bot a cualquier servidor: Discord, verificación, límites y capacidad |
+| [🛠️ Solución de problemas](docs/SOLUCION_PROBLEMAS.md) | Errores frecuentes y cómo resolverlos |
 
 ## 📂 Estructura del proyecto
 

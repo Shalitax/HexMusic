@@ -156,6 +156,7 @@ library:
   max_file_mb: 25 # tamaño máximo por archivo (Discord limita las subidas: 10 MB sin Nitro)
   max_guild_mb: 500 # espacio total por servidor (0 = sin límite)
   max_files: 200 # archivos por servidor (0 = sin límite)
+  max_total_mb: 0 # espacio total entre todos los servidores (0 = sin límite; recomendado en un bot público)
 
 # Cuenta de YouTube (solo si YouTube bloquea la IP de tu servidor). El bot muestra el
 # código de vinculación en la consola, guarda el token y se lo entrega a Lavalink.
@@ -196,3 +197,7 @@ web:
   public_url: "${WEB_PUBLIC_URL:-http://localhost:8080}"
   client_secret: "${WEB_CLIENT_SECRET:-}"
   session_days: 7 # días que dura la sesión antes de volver a iniciar sesión
+  # Bot público: enlaces que se muestran en la página de entrada del panel (vacío = ocultos)
+  support_url: ""
+  terms_url: ""
+  privacy_url: ""

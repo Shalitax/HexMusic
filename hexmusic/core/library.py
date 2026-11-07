@@ -69,6 +69,11 @@ class Library:
         return int(self.bot.config.library.max_files)
 
     @property
+    def max_total_bytes(self) -> int:
+        """Espacio total para todos los servidores (bot público: evita llenar el disco). 0 = sin límite."""
+        return int(self.bot.config.library.get("max_total_mb") or 0) * 1024 * 1024
+
+    @property
     def enabled(self) -> bool:
         return self.bot.feature("library")
 
@@ -172,6 +177,9 @@ class Library:
             raise HexError("errors.library_full_files", max=self.max_files)
         if self.max_guild_bytes and used + size > self.max_guild_bytes:
             raise HexError("errors.library_full_space", used=used // 1_048_576, max=self.max_guild_bytes // 1_048_576)
+        if self.max_total_bytes and await self.bot.db.library_total() + size > self.max_total_bytes:
+            log.warning("La biblioteca alcanzó el límite global (library.max_total_mb); se rechaza una subida.")
+            raise HexError("errors.library_full_total")
 
     def _temporary(self, guild_id: int, ext: str) -> Path:
         folder = self.directory / str(guild_id)

@@ -461,6 +461,12 @@ class Database:
         await self.conn.execute("DELETE FROM library_tracks WHERE id = ?", (entry_id,))
         await self.conn.commit()
 
+    async def library_total(self) -> int:
+        """Bytes ocupados por la biblioteca de todos los servidores."""
+        async with self.conn.execute("SELECT COALESCE(SUM(size), 0) FROM library_tracks") as cursor:
+            (total,) = await cursor.fetchone()  # type: ignore[misc]
+        return int(total)
+
     async def library_usage(self, guild_id: int) -> tuple[int, int]:
         """(archivos, bytes) de la biblioteca de un servidor."""
         async with self.conn.execute(

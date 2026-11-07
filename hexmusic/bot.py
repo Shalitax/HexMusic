@@ -61,14 +61,15 @@ class Colors:
 
 
 class HexMusic(commands.AutoShardedBot):
-    def __init__(self, *, config: Config, root: Path) -> None:
+    def __init__(self, *, config: Config, root: Path, message_content: bool | None = None) -> None:
         self.config = config
         self.root = root
         # Lo primero: los ajustes guardados desde el panel web se aplican encima de config.yml
         self.overrides = ConfigOverrides(config, root)
 
         intents = discord.Intents.default()
-        intents.message_content = bool(config.bot.message_content_intent)
+        # message_content=False: Discord rechazó el intent y el bot arranca sin él (ver __main__)
+        intents.message_content = bool(config.bot.message_content_intent) if message_content is None else message_content
 
         super().__init__(
             command_prefix=self._get_prefix,
@@ -239,7 +240,9 @@ class HexMusic(commands.AutoShardedBot):
             await self.web.stop()
         await self.library.stop()
         try:
-            await wavelink.Pool.close()
+            # eject: si el bot se vuelve a crear en este proceso, el nodo "main" tiene que poder registrarse otra vez
+            for node in list(wavelink.Pool.nodes.values()):
+                await node.close(eject=True)
         except Exception:  # noqa: BLE001 - el cierre no debe fallar
             log.debug("Error al cerrar los nodos de Lavalink", exc_info=True)
         await super().close()
@@ -261,6 +264,9 @@ class HexMusic(commands.AutoShardedBot):
         return build_controls(self, lang, player)
 
     def feature(self, name: str) -> bool:
+        # El canal de peticiones lee los mensajes: sin el intent Message Content no puede funcionar
+        if name == "request_channel" and not self.intents.message_content:
+            return False
         return bool(self.config.features.get(name, False))
 
     async def lang_for(self, guild_id: int | None) -> str:

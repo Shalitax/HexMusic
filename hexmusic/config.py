@@ -146,6 +146,7 @@ DEFAULTS: dict[str, Any] = {
         "max_file_mb": 25,
         "max_guild_mb": 500,
         "max_files": 200,
+        "max_total_mb": 0,
     },
     "youtube": {
         "oauth": "${YOUTUBE_OAUTH_ENABLED:-false}",
@@ -162,6 +163,10 @@ DEFAULTS: dict[str, Any] = {
         "public_url": "${WEB_PUBLIC_URL:-http://localhost:8080}",
         "client_secret": "${WEB_CLIENT_SECRET:-}",
         "session_days": 7,
+        # Enlaces públicos (bot público): se muestran en la página de entrada del panel
+        "support_url": "",
+        "terms_url": "",
+        "privacy_url": "",
     },
 }
 
@@ -324,7 +329,7 @@ def validate(data: dict[str, Any]) -> None:
     if data["features"].get("library"):
         if not isinstance(library.get("port"), int) or not 1 <= library["port"] <= 65535:
             errors.append("library.port debe ser un puerto válido (1-65535).")
-        for key in ("max_file_mb", "max_guild_mb", "max_files"):
+        for key in ("max_file_mb", "max_guild_mb", "max_files", "max_total_mb"):
             if not isinstance(library.get(key), int) or library[key] < 0:
                 errors.append(f"library.{key} debe ser un número entero positivo.")
 

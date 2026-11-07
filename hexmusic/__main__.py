@@ -34,8 +34,18 @@ def main() -> None:
         logging.getLogger("hexmusic").critical("Falta DISCORD_TOKEN. Cópialo en el archivo .env (ver .env.example).")
         sys.exit(1)
 
-    bot = HexMusic(config=config, root=ROOT)
-    bot.run(token, log_handler=None)
+    try:
+        HexMusic(config=config, root=ROOT).run(token, log_handler=None)
+    except discord.PrivilegedIntentsRequired:
+        # Típico de un bot público con más de 100 servidores: Discord exige aprobar el intent Message Content.
+        # Mejor seguir funcionando con los comandos slash que reiniciarse en bucle.
+        logging.getLogger("hexmusic").error(
+            "Discord rechazó el intent Message Content. HexMusic sigue sin él: funcionan los comandos slash y los de "
+            "prefijo mencionando al bot (@bot play ...), pero no el canal de peticiones. Para quitar este aviso, "
+            "actívalo en el portal de desarrolladores (Bot → Privileged Gateway Intents → Message Content) o, si el bot "
+            "no lo necesita, pon bot.message_content_intent en false (también desde el panel web).")
+        # Configuración recién leída: la anterior ya tiene aplicados los ajustes del panel web
+        HexMusic(config=load_config(config_path), root=ROOT, message_content=False).run(token, log_handler=None)
 
 
 if __name__ == "__main__":

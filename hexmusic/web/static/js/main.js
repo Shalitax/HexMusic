@@ -77,6 +77,16 @@ function guildSummary(id) {
   return state.me.guilds.find((guild) => guild.id === id) || (state.guilds.get(id) ? { id, ...state.guilds.get(id) } : { id, name: id });
 }
 
+// ───── Enlaces públicos (soporte, términos, privacidad) ─────
+
+function publicLinks(cls) {
+  const links = (state.public && state.public.links) || {};
+  const items = [["support", "users"], ["terms", "list"], ["privacy", "shield"]]
+    .filter(([key]) => safeUrl(links[key]))
+    .map(([key, iconName]) => h("a", { class: "row tight", href: links[key], target: "_blank", rel: "noopener noreferrer" }, icon(iconName, "icon-sm"), t(`nav.${key}`)));
+  return items.length ? h("div", { class: cls }, items) : null;
+}
+
 // ───── Barra lateral ─────
 
 function navLink(href, iconName, label, active, extra) {
@@ -138,7 +148,12 @@ function drawSidebar() {
       navLink("#/admin/config", "sliders", t("admin.config"), route.name === "admin" && route.tab === "config"),
       navLink("#/admin/guilds", "server", t("admin.guilds"), route.name === "admin" && route.tab === "guilds"),
       navLink("#/admin/logs", "terminal", t("admin.logs"), route.name === "admin" && route.tab === "logs")) : null,
-    h("div", { class: "sidebar-footer muted tiny" }, t("nav.footer", { name: state.public.name })));
+    h("div", { class: "sidebar-footer muted tiny" },
+      safeUrl(state.public.invite_url)
+        ? h("a", { class: "btn btn-sm btn-block", href: state.public.invite_url, target: "_blank", rel: "noopener noreferrer" }, icon("plus", "icon-sm"), t("nav.add_bot"))
+        : null,
+      publicLinks("public-links"),
+      t("nav.footer", { name: state.public.name })));
   shell.sidebarPlaying = playing;
 }
 
@@ -388,7 +403,12 @@ function renderLogin() {
       h("div", null, icon("headphones"), t("login.feature_player")),
       h("div", null, icon("library"), t("login.feature_library")),
       h("div", null, icon("chart"), t("login.feature_stats"))),
+    safeUrl(state.public.invite_url)
+      ? h("a", { class: "btn btn-primary btn-block", href: state.public.invite_url, target: "_blank", rel: "noopener noreferrer" }, icon("plus"), t("login.invite"))
+      : null,
+    safeUrl(state.public.invite_url) ? h("p", { class: "muted small" }, t("login.or_manage")) : null,
     h("a", { class: "btn btn-discord btn-block", href: "/auth/login" }, t("login.button")),
+    publicLinks("public-links center"),
     h("div", { class: "login-footer" }, state.languages.length > 1 ? lang : null))));
 }
 

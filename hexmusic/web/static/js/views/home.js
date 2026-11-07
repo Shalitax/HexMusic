@@ -51,7 +51,11 @@ export async function render(ctx) {
       h("div", { class: "grow" },
         h("h1", null, t("home.greeting", { name: me.user.name })),
         h("p", { class: "muted" }, me.owner ? t("home.subtitle_owner") : t("home.subtitle"))),
-      state.guildId ? h("a", { class: "btn btn-primary", href: `#/g/${state.guildId}/player` }, icon("play", "icon-sm"), t("home.open_player")) : null),
+      h("div", { class: "page-actions" },
+        safeUrl(state.public.invite_url)
+          ? h("a", { class: "btn", href: state.public.invite_url, target: "_blank", rel: "noopener noreferrer" }, icon("plus", "icon-sm"), t("nav.add_bot"))
+          : null,
+        state.guildId ? h("a", { class: "btn btn-primary", href: `#/g/${state.guildId}/player` }, icon("play", "icon-sm"), t("home.open_player")) : null)),
     tilesBox,
     card({ title: t("home.your_servers"), iconName: "server", sub: String(me.guilds.length) }, servers),
     activeBox,

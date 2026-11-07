@@ -156,15 +156,16 @@ class Api:
     def _icon(guild_id: int, icon: str | None) -> str | None:
         return f"https://cdn.discordapp.com/icons/{guild_id}/{icon}.png?size=96" if icon else None
 
-    def _invite_url(self, guild_id: int) -> str | None:
+    def _invite_url(self, guild_id: int | None) -> str | None:
+        """Enlace para añadir el bot a un servidor concreto o, sin guild_id, a cualquiera."""
         if not self.auth.client_id:
             return None
         return discord.utils.oauth_url(
             self.auth.client_id,
             permissions=discord.Permissions(INVITE_PERMISSIONS),
-            guild=discord.Object(id=guild_id),
+            guild=discord.Object(id=guild_id) if guild_id else discord.utils.MISSING,
             scopes=("bot", "applications.commands"),
-            disable_guild_select=True,
+            disable_guild_select=bool(guild_id),
         )
 
     async def guild_for(self, request: web.Request) -> discord.Guild:
@@ -199,6 +200,8 @@ class Api:
             "color": str(self.bot.config.branding.color),
             "avatar": user.display_avatar.url if user else None,
             "version": __version__,
+            "invite_url": self._invite_url(None),
+            "links": {key: str(self.bot.config.web.get(f"{key}_url") or "") or None for key in ("support", "terms", "privacy")},
         })
 
     async def strings(self, request: web.Request) -> web.Response:

@@ -74,7 +74,8 @@
     "library_not_found": "No hay ningún archivo llamado **{name}** en la biblioteca del servidor.",
     "library_dj_only": "Solo los administradores o quien tenga el rol DJ pueden gestionar la biblioteca.",
     "library_empty": "La biblioteca del servidor está vacía.",
-    "attachment_not_storable": "Los archivos adjuntos en Discord no se pueden guardar en una playlist: su enlace caduca en un día. Súbelo a la biblioteca con `/upload` y añádelo desde allí."
+    "attachment_not_storable": "Los archivos adjuntos en Discord no se pueden guardar en una playlist: su enlace caduca en un día. Súbelo a la biblioteca con `/upload` y añádelo desde allí.",
+    "library_full_total": "El almacenamiento de la biblioteca del bot está lleno. Avisa a los administradores del bot."
   },
   "nowplaying": {
     "title": "Reproduciendo ahora",
@@ -341,7 +342,9 @@
       },
       "feature_player": "Controla la música en tiempo real",
       "feature_library": "Sube tus propios archivos de audio",
-      "feature_stats": "Historial y estadísticas de escucha"
+      "feature_stats": "Historial y estadísticas de escucha",
+      "invite": "Añadir a tu servidor",
+      "or_manage": "¿Ya lo tienes? Inicia sesión para gestionarlo."
     },
     "nav": {
       "stats": "Estadísticas",
@@ -378,7 +381,11 @@
       "rt_connecting": "Conectando",
       "rt_connecting_hint": "Conectando con el bot…",
       "rt_off": "Sin conexión",
-      "rt_off_hint": "No hay conexión con el bot."
+      "rt_off_hint": "No hay conexión con el bot.",
+      "support": "Soporte",
+      "terms": "Términos",
+      "privacy": "Privacidad",
+      "add_bot": "Añadir a otro servidor"
     },
     "errors": {
       "generic": "Algo salió mal. Inténtalo de nuevo.",
@@ -891,7 +898,11 @@
         "emojis-sources-bandcamp": "Fuente: Bandcamp",
         "emojis-sources-twitch": "Fuente: Twitch",
         "emojis-sources-http": "Fuente: enlaces directos",
-        "emojis-sources-default": "Fuente: otras fuentes"
+        "emojis-sources-default": "Fuente: otras fuentes",
+        "library-max_total_mb": "Espacio total de la biblioteca (MB)",
+        "web-support_url": "Enlace del servidor de soporte",
+        "web-terms_url": "Enlace de los términos de servicio",
+        "web-privacy_url": "Enlace de la política de privacidad"
       },
       "h": {
         "bot-name": "Se muestra en los mensajes y en este panel.",
@@ -922,7 +933,11 @@
         "library-max_guild_mb": "0 = sin límite.",
         "library-max_files": "0 = sin límite.",
         "request_channel-delete_after": "0 = no se borran.",
-        "filters-presets": "Formato de filtros de Lavalink. Ejemplo: {\"mibajo\": {\"equalizer\": [{\"band\": 0, \"gain\": 0.2}]}}. null elimina un preset incluido."
+        "filters-presets": "Formato de filtros de Lavalink. Ejemplo: {\"mibajo\": {\"equalizer\": [{\"band\": 0, \"gain\": 0.2}]}}. null elimina un preset incluido.",
+        "library-max_total_mb": "Suma de todos los servidores. 0 = sin límite. Recomendado en un bot público para no llenar el disco.",
+        "web-support_url": "Invitación a tu servidor de Discord de soporte. Se muestra en la página de entrada del panel.",
+        "web-terms_url": "Discord la pide para verificar un bot público.",
+        "web-privacy_url": "Discord la pide para verificar un bot público."
       }
     }
   },
