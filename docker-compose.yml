@@ -22,7 +22,9 @@ services:
     #   - "127.0.0.1:2333:2333"
 
   bot:
-    build: .
+    build:
+      context: .
+      dockerfile: docker/bot.Dockerfile
     image: hexmusic:latest
     container_name: hexmusic-bot
     restart: unless-stopped

@@ -4,7 +4,7 @@
 # Guía completa: docs/DOKPLOY.md
 #
 # Un único contenedor, igual que el egg de Pterodactyl: la imagen
-# docker/Dockerfile incluye el bot, Lavalink y el cifrado de YouTube
+# Dockerfile de la raíz incluye el bot, Lavalink y el cifrado de YouTube
 # (yt-cipher). Lavalink escucha en 127.0.0.1 dentro del contenedor, así que
 # no depende de nombres de servicio ni de redes entre contenedores (lo que
 # provocaba "Cannot connect to host lavalink:2333").
@@ -18,7 +18,7 @@ services:
   bot:
     build:
       context: .
-      dockerfile: docker/Dockerfile
+      dockerfile: Dockerfile
     restart: unless-stopped
     env_file: .env
     # Tiempo para que el bot guarde la cola y cierre Lavalink al redesplegar.

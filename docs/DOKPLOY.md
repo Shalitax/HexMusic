@@ -2,7 +2,7 @@
 
 Esta guía despliega HexMusic en [Dokploy](https://dokploy.com/) con el servicio **Compose** y el archivo [`docker-compose.dokploy.yml`](../docker-compose.dokploy.yml).
 
-El despliegue funciona igual que el egg de Pterodactyl: **un único contenedor** ([`docker/Dockerfile`](../docker/Dockerfile)) incluye el bot, Lavalink y el cifrado de YouTube (yt-cipher). Lavalink escucha en `127.0.0.1` dentro del contenedor, así que no depende de nombres de servicio ni de redes entre contenedores.
+El despliegue funciona igual que el egg de Pterodactyl: **un único contenedor** ([`Dockerfile`](../Dockerfile), en la raíz) incluye el bot, Lavalink y el cifrado de YouTube (yt-cipher). Lavalink escucha en `127.0.0.1` dentro del contenedor, así que no depende de nombres de servicio ni de redes entre contenedores.
 
 > Para ejecutarlo en tu PC sigue la [instalación con Docker](INSTALACION.md#4-opción-a--docker-recomendada).
 
@@ -132,7 +132,7 @@ Si ya tenías desplegada la versión con los servicios `lavalink` y `lavalink-in
 - Puedes programar **Volume Backups** de Dokploy sobre `hexmusic-data`.
 - **Código, `config.yml`, `locales/` o `lavalink/application.yml`**: commit + push y vuelve a desplegar (o activa **Auto Deploy**). Todo viaja dentro de la imagen.
 - **Solo variables**: cámbialas en **Environment** y pulsa **Deploy**.
-- **Versiones de Lavalink, Deno o yt-cipher**: están fijadas como `ARG` al principio de [`docker/Dockerfile`](../docker/Dockerfile) (las mismas que el egg).
+- **Versiones de Lavalink, Deno o yt-cipher**: están fijadas como `ARG` al principio de [`Dockerfile`](../Dockerfile) (las mismas que el egg).
 
 ---
 
@@ -156,6 +156,7 @@ Además de las de `.env.example`, la imagen entiende estas:
 
 | Síntoma | Causa / solución |
 |---|---|
+| `Cannot connect to host localhost:2333` y el log **no** empieza con `Resumen de arranque` | Dokploy no está usando la imagen todo en uno: el contenedor solo lanza el bot. En una **Application**, pon **Build Type** `Dockerfile`, **Dockerfile Path** `./Dockerfile` y **Docker Context Path** `.`, y deja vacío cualquier *Command* personalizado. **Nixpacks no sirve**: no incluye Java ni Lavalink. En un **Compose**, el Compose Path debe ser `./docker-compose.dokploy.yml`. |
 | `Cannot connect to host lavalink:2333 [Name or service not known]` | Estás desplegando el compose antiguo de dos contenedores. Haz pull de la versión actual (un solo servicio `bot`) y vuelve a desplegar. Si usas `LAVALINK_MODE=externo`, revisa `LAVALINK_URI`. |
 | `Lavalink aún no responde` o `lavalink se cerró (código …)` | El motivo está en las líneas `[lavalink]` justo encima. Lo habitual: sin salida a internet para descargar plugins, memoria insuficiente o una fuente mal configurada. Lavalink se reinicia solo. |
 | `No se puede escribir en /app/data` | El volumen no pertenece al UID 1000. Ejecuta el `chown` que muestra el log o borra el volumen si está vacío. |
@@ -173,7 +174,7 @@ Además de las de `.env.example`, la imagen entiende estas:
 ### Application en lugar de Compose
 
 1. **Create Service → Application**, repo `Shalitax/HexMusic`, rama `main`.
-2. **Build Type**: `Dockerfile` · **Dockerfile Path**: `./docker/Dockerfile` · **Docker Context Path**: `.`
+2. **Build Type**: `Dockerfile` · **Dockerfile Path**: `./Dockerfile` · **Docker Context Path**: `.`
 3. **Environment**: las mismas variables de la sección 3.
 4. **Advanced → Volumes**: volumen `hexmusic-data` en `/app/data`.
 5. **Domains**: puerto `8080`, HTTPS. **Deploy**.

@@ -97,6 +97,7 @@ class HexMusic(commands.AutoShardedBot):
         self.console: Any = None  # Console cuando bot.console = true
         self._shutting_down = False
         self._stop_task: asyncio.Task[None] | None = None
+        self._nodes_warning_task: asyncio.Task[None] | None = None
 
     # ───── Arranque ─────
 
@@ -126,6 +127,7 @@ class HexMusic(commands.AutoShardedBot):
 
         # En segundo plano: el bot arranca aunque Lavalink tarde en estar listo
         self._nodes_task = asyncio.create_task(self.connect_nodes())
+        self._nodes_warning_task = asyncio.create_task(self._warn_without_nodes())
 
         if self.config.web.enabled:
             from .web.server import WebPanel
@@ -193,6 +195,18 @@ class HexMusic(commands.AutoShardedBot):
         cache = int(self.config.lavalink.search_cache or 0) or None
         await wavelink.Pool.connect(nodes=nodes, client=self, cache_capacity=cache)
 
+    async def _warn_without_nodes(self) -> None:
+        """Si Lavalink no responde al minuto, explica en el log qué revisar (wavelink solo dice que reintenta)."""
+        await asyncio.sleep(60)
+        if any(node.status is wavelink.NodeStatus.CONNECTED for node in wavelink.Pool.nodes.values()):
+            return
+        uris = ", ".join(str(node["uri"]) for node in self.config.lavalink.nodes)
+        log.warning(
+            "Sin conexión con Lavalink (%s) tras 60 s: la música no sonará hasta que responda. "
+            "En Docker/Dokploy construye la imagen con el Dockerfile de la raíz (arranca Lavalink dentro del "
+            "contenedor y el log empieza con 'Resumen de arranque'); Nixpacks no incluye Lavalink. "
+            "Con Lavalink aparte, revisa LAVALINK_URI, LAVALINK_PASSWORD y que el servidor esté en marcha.", uris)
+
     async def sync_app_commands(self, guild_id: int | None = None) -> list[app_commands.AppCommand]:
         target = guild_id or self.config.bot.dev_guild_id
         if target:
@@ -217,6 +231,8 @@ class HexMusic(commands.AutoShardedBot):
         await self.sessions.close()
         await self.youtube.close()
         self.history.stop()
+        if self._nodes_warning_task is not None:
+            self._nodes_warning_task.cancel()
         if self._nodes_task is not None:
             self._nodes_task.cancel()
         if self.web is not None:

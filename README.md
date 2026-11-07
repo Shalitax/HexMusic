@@ -71,8 +71,8 @@ HexMusic/
 ├── .env.example            ← plantilla de secretos (token, contraseñas, credenciales)
 ├── docker-compose.yml      ← bot + Lavalink (uso local)
 ├── docker-compose.dokploy.yml ← Dokploy: un contenedor con todo
-├── Dockerfile              ← imagen solo del bot
-├── docker/                 ← imagen todo en uno (bot + Lavalink + yt-cipher) y su arranque
+├── Dockerfile              ← imagen todo en uno (bot + Lavalink + yt-cipher): Dokploy, docker run
+├── docker/                 ← arranque de esa imagen e imagen solo del bot (docker-compose.yml)
 ├── requirements.txt
 ├── lavalink/
 │   ├── application.yml     ← Lavalink ajustado para máxima calidad + plugins

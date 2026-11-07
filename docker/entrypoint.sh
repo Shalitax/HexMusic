@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Arranque de la imagen "todo en uno" de HexMusic (docker/Dockerfile).
+# Arranque de la imagen "todo en uno" de HexMusic (Dockerfile de la raíz).
 # Es la versión para Docker/Dokploy del entrypoint del egg de Pterodactyl:
 #   - comprueba el token y desactiva las fuentes sin credenciales
 #   - genera y guarda la contraseña de Lavalink si no se indica
