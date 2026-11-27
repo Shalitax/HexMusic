@@ -296,6 +296,36 @@ insertar_remote_cipher() {
     mv "${yaml}.tmp" "${yaml}"
 }
 
+# Con Deezer o Qobuz activos, Spotify, Apple Music y Tidal se reproducen con su
+# audio sin pérdida en vez de YouTube: se ponen los primeros en providers.
+# LOSSLESS_MIRROR=false lo evita (p. ej. con Deezer gratis, que solo da MP3 128 kbps).
+preferir_sin_perdida() {
+    local yaml="${LAVALINK_HOME}/application.yml" extra="" nombres=""
+    if ! is_true "${LOSSLESS_MIRROR:-1}"; then
+        RESUMEN_ESPEJO="YouTube (LOSSLESS_MIRROR=false)"
+        return 0
+    fi
+    if is_true "${DEEZER_ENABLED:-0}" && ! grep -Eq '^[[:space:]]*- "dzisrc:' "${yaml}"; then
+        extra="${extra}      - \"dzisrc:%ISRC%\"\n"
+        nombres="${nombres} → Deezer"
+    fi
+    if is_true "${QOBUZ_ENABLED:-0}" && ! grep -Eq '^[[:space:]]*- "qbisrc:' "${yaml}"; then
+        extra="${extra}      - \"qbisrc:%ISRC%\"\n"
+        nombres="${nombres} → Qobuz"
+    fi
+    if [ -z "${extra}" ]; then
+        return 0
+    fi
+    awk -v extra="${extra%\\n}" '{ print } /^    providers:$/ { print extra }' "${yaml}" > "${yaml}.tmp" || return 1
+    if cmp -s "${yaml}" "${yaml}.tmp"; then
+        rm -f "${yaml}.tmp"
+        log_warn "No se encontró providers en application.yml; Spotify, Apple Music y Tidal siguen saliendo de YouTube."
+        return 1
+    fi
+    mv "${yaml}.tmp" "${yaml}"
+    RESUMEN_ESPEJO="${nombres# → } → YouTube"
+}
+
 # Supervisa un proceso: lo relanza si se cae y lo cierra al recibir TERM.
 #   supervisar <nombre> <directorio> <archivo de log | -> <comando...>
 # Con "-" la salida va al log del contenedor con el prefijo [nombre].
@@ -369,6 +399,8 @@ if [ "${LAVALINK_MODE}" = "interno" ]; then
     fi
     # La configuración viene siempre del repositorio: se copia en cada arranque.
     tr -d '\r' < "${APP_DIR}/lavalink/application.yml" > "${LAVALINK_HOME}/application.yml"
+    RESUMEN_ESPEJO="YouTube"
+    preferir_sin_perdida
 
     RESUMEN_CIFRADO="desactivado"
     if is_true "${YOUTUBE_CIPHER:-1}"; then
@@ -396,6 +428,7 @@ linea
 log_info "Resumen de arranque"
 log_info "Lavalink: ${RESUMEN_LAVALINK}"
 log_info "Fuentes: ${FUENTES}"
+[ -n "${RESUMEN_ESPEJO:-}" ] && log_info "Audio de Spotify, Apple Music y Tidal: ${RESUMEN_ESPEJO}"
 [ -n "${RESUMEN_YOUTUBE:-}" ] && log_info "YouTube con cuenta: ${RESUMEN_YOUTUBE}"
 log_info "Cifrado de YouTube: ${RESUMEN_CIFRADO}"
 log_info "Panel web: ${RESUMEN_WEB}"

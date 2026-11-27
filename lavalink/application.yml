@@ -92,9 +92,10 @@ plugins:
       # Lavalink no llegaría a arrancar. Tampoco se pide código desde Lavalink.
       skipInitialization: true
     # Servidor de cifrado remoto (yt-cipher): resuelve las firmas que el cliente
-    # TV necesita para reproducir con la cuenta vinculada. El egg de Pterodactyl
-    # instala y conecta uno interno automáticamente (no hay que tocar nada aquí);
-    # con Docker, levanta un yt-cipher propio y descomenta:
+    # TV necesita para reproducir con la cuenta vinculada. El egg de Pterodactyl y
+    # la imagen todo en uno (Dokploy) instalan y conectan uno interno automáticamente
+    # (no hay que tocar nada aquí); en otras instalaciones, levanta un yt-cipher
+    # propio y descomenta:
     # remoteCipher:
     #   url: "http://localhost:8001"
     #   password: ""
@@ -108,8 +109,10 @@ plugins:
     # Cómo se convierten las canciones "espejo" (Spotify, Apple Music, Tidal) en audio real.
     # Primero se busca por ISRC (coincidencia exacta de grabación) y luego por texto.
     providers:
-      # - "dzisrc:%ISRC%" # descomenta si configuras Deezer: audio FLAC/320 kbps
-      # - "qbisrc:%ISRC%" # descomenta si configuras Qobuz: audio en alta fidelidad
+      # Con la imagen todo en uno (Dokploy) Deezer y Qobuz se añaden aquí solos al activarlos.
+      # En otras instalaciones, descomenta la fuente que configures:
+      # - "dzisrc:%ISRC%" # Deezer: audio FLAC/320 kbps
+      # - "qbisrc:%ISRC%" # Qobuz: audio en alta fidelidad
       - "ytsearch:\"%ISRC%\""
       - "ytsearch:%QUERY%"
     sources:

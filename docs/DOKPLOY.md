@@ -147,6 +147,7 @@ Además de las de `.env.example`, la imagen entiende estas:
 | `LAVALINK_MEMORY` | `auto` | `auto` = 55 % del límite de memoria del contenedor (o 1 GB si no tiene). También `1024` (MB) o `1G` |
 | `LAVALINK_TIMEOUT` | `180` | Segundos que se espera a Lavalink antes de arrancar el bot igualmente |
 | `YOUTUBE_CIPHER` | `true` | Servidor de cifrado interno (yt-cipher) para el error *Must find sig function* y la reproducción con cuenta |
+| `LOSSLESS_MIRROR` | `true` | Con Deezer o Qobuz activos, los enlaces de Spotify, Apple Music y Tidal se reproducen con su audio sin pérdida en vez de YouTube. `false` si tu cuenta de Deezer es gratuita (solo da MP3 a 128 kbps) |
 | `LOG_RETENTION_DAYS` | `7` | Borra registros de Lavalink y yt-cipher más antiguos al arrancar |
 | `HEXMUSIC__SECCION__CLAVE` | — | Sobrescribe cualquier clave de `config.yml` (p. ej. `HEXMUSIC__BOT__PREFIX=!`). Ver [CONFIGURACION.md](CONFIGURACION.md) |
 

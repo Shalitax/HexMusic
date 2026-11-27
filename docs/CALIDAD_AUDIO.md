@@ -55,7 +55,7 @@ Y en `config.yml`:
 
 1. **Volumen al 100 % y sin filtros** mientras escuchas música "en serio". `/filter reset` y `/volume 100`.
 2. **Busca en YouTube Music** (predeterminado) o pega enlaces de Spotify, Apple Music o Tidal: LavaSrc los resuelve por ISRC a la grabación exacta.
-3. **Añade una fuente sin pérdida** (Deezer premium o Qobuz) y ponla la primera en `providers` (ver [Fuentes](FUENTES.md#qué-es-espejo-mirroring)). Así los enlaces de Spotify, Apple Music y Tidal salen de un máster FLAC codificado **una sola vez** a Opus calidad 10.
+3. **Añade una fuente sin pérdida** (Deezer premium o Qobuz). Con Docker o Dokploy basta con poner sus variables (`DEEZER_ENABLED`… o `QOBUZ_ENABLED`…) y redesplegar: se colocan solas las primeras en `providers`. En otras instalaciones, ponlas tú (ver [Fuentes](FUENTES.md#qué-es-espejo-mirroring)). Así los enlaces de Spotify, Apple Music y Tidal salen de un máster FLAC codificado **una sola vez** a Opus calidad 10.
 4. **Aloja Lavalink cerca de Discord.** Un servidor en la misma región que tus oyentes (p. ej. Europa para España) reduce la latencia y el jitter.
 5. **Dale CPU real a Lavalink.** Evita VPS con CPU compartida muy saturada. Cada reproductor que recodifica usa CPU de forma continua.
 6. **Reserva memoria suficiente** (`LAVALINK_MEMORY=1G` o más). Si la JVM se queda sin memoria, hace pausas de recolección que provocan cortes. En el log aparecen como *GC warnings*.

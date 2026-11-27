@@ -22,7 +22,11 @@ providers:
   - "ytsearch:%QUERY%"      # 2º: búsqueda por "título artista"
 ```
 
-El ISRC evita versiones equivocadas (en directo, remixes, videoclips con intro). Si configuras Deezer o Qobuz, ponlos **primero** para que el audio salga de una fuente sin pérdida:
+El ISRC evita versiones equivocadas (en directo, remixes, videoclips con intro). Si configuras Deezer o Qobuz, deben ir **primero** para que el audio salga de una fuente sin pérdida.
+
+**Con la imagen todo en uno (Dokploy)** se hace solo: al arrancar con `DEEZER_ENABLED=true` o `QOBUZ_ENABLED=true` (y sus credenciales), se colocan los primeros y el log lo indica en *Audio de Spotify, Apple Music y Tidal*. Para evitarlo, por ejemplo con una cuenta gratuita de Deezer, que solo da MP3 a 128 kbps, pon `LOSSLESS_MIRROR=false`.
+
+En otras instalaciones, edita `providers` a mano:
 
 ```yaml
 providers:

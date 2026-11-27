@@ -16,8 +16,8 @@ FROM debian:bookworm-slim AS builder
 # Versiones fijadas: las mismas que usa el egg de Pterodactyl.
 ARG LAVALINK_VERSION=4.2.2
 ARG DENO_VERSION=v2.9.6
-ARG YT_CIPHER_COMMIT=1e1fd8e2f34ca90cf23545be72e46307bd3d3d2a
-ARG YT_CIPHER_EJS_COMMIT=cd4e87f52e87ab6d8b318fd3a817adda6fafa8dc
+ARG YT_CIPHER_COMMIT=91d55a24fafd83fa85f72dfe6914626b05f799f6
+ARG YT_CIPHER_EJS_COMMIT=c47fb1b54215afa4f6a3d557ad65bb724022f6ba
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl unzip \
